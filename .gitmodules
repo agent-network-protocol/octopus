@@ -1,0 +1,3 @@
+[submodule "anp-open-sdk"]
+	path = anp-open-sdk
+	url = git@github.com:agent-network-protocol/anp-open-sdk.git
