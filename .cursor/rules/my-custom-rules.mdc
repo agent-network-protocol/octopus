@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+在主入口模块，使用utils中的log_base.py的setup_enhanced_logging()来初始化日志模块，使用logger.info()这类的方法来打印信息

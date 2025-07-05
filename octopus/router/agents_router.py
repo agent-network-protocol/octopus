@@ -422,17 +422,17 @@ class ParameterExtractor:
     @staticmethod
     def _python_type_to_json_schema(python_type) -> Dict[str, Any]:
         """Convert Python type to JSON Schema type."""
-        if python_type == str:
+        if python_type is str:
             return {"type": "string"}
-        elif python_type == int:
+        elif python_type is int:
             return {"type": "integer"}
-        elif python_type == float:
+        elif python_type is float:
             return {"type": "number"}
-        elif python_type == bool:
+        elif python_type is bool:
             return {"type": "boolean"}
-        elif python_type == dict or python_type == Dict:
+        elif python_type is dict or python_type is Dict:
             return {"type": "object"}
-        elif python_type == list or python_type == List:
+        elif python_type is list or python_type is List:
             return {"type": "array"}
         
         # Handle generic types

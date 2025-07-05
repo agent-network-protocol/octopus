@@ -11,8 +11,7 @@ import inspect
 from dataclasses import dataclass, field
 
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Get logger (logging should be initialized in main entry point)
 logger = logging.getLogger(__name__)
 
 

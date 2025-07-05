@@ -7,12 +7,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from octopus.utils.log_base import set_log_color_level
+from octopus.utils.log_base import setup_enhanced_logging
 from octopus.config.settings import get_settings
 
-# Initialize logging and settings
+# Initialize logging using setup_enhanced_logging at the main entry point
 settings = get_settings()
-logger = set_log_color_level(level=getattr(logging, settings.log_level), include_location=True, configure_all=True)
+logger = setup_enhanced_logging(level=getattr(logging, settings.log_level))
 
 
 @asynccontextmanager
@@ -56,4 +56,24 @@ async def get_info():
         "name": settings.app_name,
         "version": settings.app_version,
         "description": "A FastAPI application for the Octopus project"
-    } 
+    }
+
+
+def main():
+    """Main function to run the FastAPI application."""
+    import uvicorn
+    
+    logger.info("Starting Octopus FastAPI server on port 9880")
+    
+    # Run the FastAPI application
+    uvicorn.run(
+        "octopus.octopus:app",
+        host="0.0.0.0",
+        port=9880,
+        reload=True,
+        log_level="info"
+    )
+
+
+if __name__ == "__main__":
+    main() 

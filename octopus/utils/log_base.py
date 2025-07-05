@@ -106,7 +106,9 @@ def setup_logging(level=logging.INFO, log_file=None, propagate=False, include_lo
                     os.chmod(log_dir, 0o755)
         except Exception as e:
             # If creation fails, use a fallback log directory
-            print(f"Error creating log directory {log_dir}: {e}")
+            # Use a basic logger since we're in the logging setup itself
+            basic_logger = logging.getLogger('setup')
+            basic_logger.warning(f"Error creating log directory {log_dir}: {e}")
             log_dir = os.path.join(os.path.expanduser('~'), 'logs')
             os.makedirs(log_dir, exist_ok=True)
         
