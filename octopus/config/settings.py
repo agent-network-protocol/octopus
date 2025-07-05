@@ -31,9 +31,13 @@ class Settings(BaseSettings):
     # ANP SDK settings
     anp_sdk_enabled: bool = True
     
+    # Model Provider settings
+    model_provider: str = "openai"  # Currently only supports "openai"
+    
     # OpenAI settings
     openai_api_key: Optional[str] = None
-    openai_model: str = "gpt-4-turbo-preview"
+    openai_base_url: Optional[str] = None
+    openai_model: str = "gpt-4o"
     openai_temperature: float = 0.7
     openai_max_tokens: int = 4000
     

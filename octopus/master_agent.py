@@ -35,25 +35,51 @@ class MasterAgent(BaseAgent):
     4. Result aggregation and synthesis
     """
     
-    def __init__(self, api_key: str = None, model: str = "gpt-4-turbo-preview", **kwargs):
+    def __init__(self, api_key: str = None, model: str = None, base_url: str = None, **kwargs):
         """
         Initialize the Master Agent.
         
         Args:
-            api_key: OpenAI API key
-            model: OpenAI model to use
+            api_key: OpenAI API key (optional, will use settings if not provided)
+            model: OpenAI model to use (optional, will use settings if not provided)
+            base_url: OpenAI base URL (optional, will use settings if not provided)
             **kwargs: Additional configuration
         """
         super().__init__(name="MasterAgent", description="Task orchestrator", **kwargs)
         
-        # OpenAI setup
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable or pass api_key parameter.")
+        # Get settings
+        settings = get_settings()
         
-        self.model = model
-        self.client = OpenAI(api_key=self.api_key)
-        self.async_client = AsyncOpenAI(api_key=self.api_key)
+        # Validate model provider
+        self.model_provider = settings.model_provider.lower()
+        if self.model_provider != "openai":
+            raise ValueError(f"Unsupported model provider: {self.model_provider}. Currently only 'openai' is supported.")
+        
+        # OpenAI setup using settings
+        self.api_key = api_key or settings.openai_api_key
+        if not self.api_key:
+            raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY in .env file or pass api_key parameter.")
+        
+        self.model = model or settings.openai_model
+        self.base_url = base_url or settings.openai_base_url
+        self.temperature = settings.openai_temperature
+        self.max_tokens = settings.openai_max_tokens
+        
+        # Create client based on provider
+        self._initialize_client()
+        
+    def _initialize_client(self):
+        """Initialize the appropriate client based on model provider."""
+        if self.model_provider == "openai":
+            # Create OpenAI client with optional base_url
+            client_kwargs = {"api_key": self.api_key}
+            if self.base_url:
+                client_kwargs["base_url"] = self.base_url
+                
+            self.client = OpenAI(**client_kwargs)
+            self.async_client = AsyncOpenAI(**client_kwargs)
+        else:
+            raise ValueError(f"Unsupported model provider: {self.model_provider}")
         
         # Executor for parallel tasks
         self.executor = ThreadPoolExecutor(max_workers=5)
@@ -61,7 +87,10 @@ class MasterAgent(BaseAgent):
         # Task history
         self.task_history = []
         
-        self.logger.info(f"MasterAgent initialized with model: {self.model}")
+        self.logger.info(f"MasterAgent initialized with provider: {self.model_provider}, model: {self.model}")
+        if self.base_url:
+            self.logger.info(f"Using {self.model_provider.upper()} base URL: {self.base_url}")
+        self.logger.info(f"{self.model_provider.upper()} settings - Temperature: {self.temperature}, Max tokens: {self.max_tokens}")
     
     def initialize(self):
         """Custom initialization."""
@@ -179,7 +208,8 @@ Respond in JSON format with the following structure:
                     {"role": "user", "content": user_prompt}
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.7
+                temperature=self.temperature,
+                max_tokens=self.max_tokens
             )
             
             analysis = json.loads(response.choices[0].message.content)
@@ -374,7 +404,8 @@ Please synthesize these results into a coherent response."""
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.7
+                temperature=self.temperature,
+                max_tokens=self.max_tokens
             )
             
             synthesis = response.choices[0].message.content

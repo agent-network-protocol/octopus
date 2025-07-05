@@ -27,9 +27,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Octopus API",
+    title=settings.app_name,
     description="A FastAPI application for the Octopus project",
     version=settings.app_version,
+    debug=settings.debug,
     lifespan=lifespan
 )
 
@@ -63,15 +64,19 @@ def main():
     """Main function to run the FastAPI application."""
     import uvicorn
     
-    logger.info("Starting Octopus FastAPI server on port 9880")
+    logger.info(f"Starting {settings.app_name} FastAPI server on {settings.host}:{settings.port}")
+    logger.info(f"Debug mode: {settings.debug}")
+    logger.info(f"OpenAI Model: {settings.openai_model}")
+    if settings.openai_base_url:
+        logger.info(f"OpenAI Base URL: {settings.openai_base_url}")
     
     # Run the FastAPI application
     uvicorn.run(
         "octopus.octopus:app",
-        host="0.0.0.0",
-        port=9880,
-        reload=True,
-        log_level="info"
+        host=settings.host,
+        port=settings.port,
+        reload=settings.debug,
+        log_level=settings.log_level.lower()
     )
 
 
