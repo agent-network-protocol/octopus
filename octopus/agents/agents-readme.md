@@ -40,7 +40,6 @@ Octopus 采用**装饰符 + 反射机制**实现智能体的自动注册，确�
 @register_agent(
     name="data_analyzer",
     description="数据分析专家智能体",
-    category="data_processing",
     version="1.0.0"
 )
 class DataAnalyzerAgent(BaseAgent):
@@ -74,44 +73,370 @@ class DataAnalyzerAgent(BaseAgent):
 - 方法的文档字符串（docstring）
 - 方法的返回值类型
 
-#### 1.3 注册信息结构
+**自动发现代码示例**：
 ```python
-# 自动生成的注册信息结构
-{
-    "name": "data_analyzer",
-    "description": "数据分析专家智能体",
-    "category": "data_processing",
-    "version": "1.0.0",
-    "class_reference": DataAnalyzerAgent,
-    "methods": {
-        "process_csv_data": {
-            "description": "处理CSV格式数据",
-            "parameters": {
-                "file_path": {"type": "string", "required": True},
-                "options": {"type": "dict", "required": False, "default": None}
-            },
-            "returns": {"type": "dict"},
-            "docstring": "Process CSV data with various options"
-        },
-        "generate_statistics": {
-            "description": "生成数据统计报告",
-            "parameters": {
-                "data": {"type": "dict", "required": True}
-            },
-            "returns": {"type": "dict"},
-            "docstring": "Generate statistical analysis report"
-        }
-    }
-}
+import inspect
+from typing import get_type_hints
+
+class AgentDiscovery:
+    @staticmethod
+    def discover_agent_methods(agent_class) -> Dict:
+        """自动发现智能体的所有方法"""
+        discovered_methods = {}
+        
+        # 1. 扫描类中的所有方法
+        for method_name, method_obj in inspect.getmembers(agent_class, predicate=inspect.ismethod):
+            # 2. 检查是否有 @agent_method 装饰符
+            if hasattr(method_obj, '_agent_method_meta'):
+                print(f"🔍 发现装饰方法: {method_name}")
+                
+                # 3. 获取方法签名
+                signature = inspect.signature(method_obj)
+                print(f"📝 方法签名: {signature}")
+                
+                # 4. 解析参数信息
+                parameters = {}
+                for param_name, param in signature.parameters.items():
+                    if param_name != 'self':
+                        param_info = {
+                            "type": str(param.annotation),
+                            "required": param.default == inspect.Parameter.empty,
+                            "default": param.default if param.default != inspect.Parameter.empty else None
+                        }
+                        parameters[param_name] = param_info
+                        print(f"  📋 参数 {param_name}: {param_info}")
+                
+                # 5. 获取返回值类型
+                return_type = str(signature.return_annotation)
+                print(f"📤 返回类型: {return_type}")
+                
+                # 6. 获取文档字符串
+                docstring = inspect.getdoc(method_obj)
+                print(f"📚 文档字符串: {docstring}")
+                
+                # 7. 合并所有信息
+                discovered_methods[method_name] = {
+                    "description": method_obj._agent_method_meta.get("description", ""),
+                    "parameters": parameters,
+                    "returns": return_type,
+                    "docstring": docstring,
+                    "signature": str(signature)
+                }
+        
+        return discovered_methods
+
+# 使用示例
+@register_agent(name="example_agent", description="示例智能体")
+class ExampleAgent(BaseAgent):
+    
+    @agent_method(description="处理文本数据")
+    def process_text(self, text: str, options: Dict[str, Any] = None) -> Dict[str, str]:
+        """
+        Process text data with various options
+        
+        Args:
+            text: Input text to process
+            options: Processing options
+            
+        Returns:
+            Dict containing processed results
+        """
+        return {"processed_text": text.upper()}
+
+# 自动发现过程演示
+print("🚀 开始自动发现过程...")
+discovered = AgentDiscovery.discover_agent_methods(ExampleAgent)
+
+# 输出结果：
+# 🔍 发现装饰方法: process_text
+# 📝 方法签名: (text: str, options: Dict[str, Any] = None) -> Dict[str, str]
+#   📋 参数 text: {'type': '<class 'str'>', 'required': True, 'default': None}
+#   📋 参数 options: {'type': 'Dict[str, Any]', 'required': False, 'default': None}
+# 📤 返回类型: Dict[str, str]
+# 📚 文档字符串: Process text data with various options...
 ```
 
-### 2. 任务执行流程
-1. **任务接收**：主智能体接收用户请求
-2. **任务分析**：主智能体分析任务类型和所需能力
-3. **智能体匹配**：通过路由器查找合适的子智能体
-4. **任务分发**：将任务分发给匹配的子智能体
-5. **结果收集**：收集子智能体的执行结果
-6. **结果整合**：主智能体整合结果并返回给用户
+**直接从函数提取参数（无需装饰符）**：
+```python
+import inspect
+from typing import get_type_hints, Union, Optional, Dict, List, Any
+
+class AutoParameterExtractor:
+    """无需装饰符的参数自动提取器"""
+    
+    @staticmethod
+    def extract_function_schema(func) -> Dict:
+        """直接从函数定义中提取完整的schema信息"""
+        # 1. 获取函数基本信息
+        func_name = func.__name__
+        func_doc = inspect.getdoc(func) or ""
+        
+        # 2. 获取函数签名和类型提示
+        signature = inspect.signature(func)
+        type_hints = get_type_hints(func)
+        
+        print(f"🔍 正在分析函数: {func_name}")
+        print(f"📚 函数文档: {func_doc}")
+        
+        # 3. 解析参数
+        properties = {}
+        required = []
+        
+        for param_name, param in signature.parameters.items():
+            if param_name == 'self':  # 跳过self参数
+                continue
+                
+            # 获取类型提示
+            param_type = type_hints.get(param_name, param.annotation)
+            
+            # 解析参数类型
+            json_type = AutoParameterExtractor._python_type_to_json_type(param_type)
+            
+            # 构建参数信息
+            param_info = {
+                "type": json_type["type"],
+                "description": f"Parameter {param_name}"  # 可以从docstring解析获得更详细描述
+            }
+            
+            # 添加额外的类型信息
+            if "items" in json_type:
+                param_info["items"] = json_type["items"]
+            
+            properties[param_name] = param_info
+            
+            # 判断是否为必需参数
+            if param.default == inspect.Parameter.empty:
+                required.append(param_name)
+            else:
+                param_info["default"] = param.default
+            
+            print(f"  📋 参数 {param_name}: {param_info}")
+        
+        # 4. 构建OpenAI Function Calling格式
+        return {
+            "type": "function",
+            "function": {
+                "name": func_name,
+                "description": func_doc,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                    "additionalProperties": False
+                }
+            }
+        }
+    
+    @staticmethod
+    def _python_type_to_json_type(python_type) -> Dict[str, Any]:
+        """将Python类型转换为JSON Schema类型"""
+        # 处理基础类型
+        if python_type == str:
+            return {"type": "string"}
+        elif python_type == int:
+            return {"type": "integer"}
+        elif python_type == float:
+            return {"type": "number"}
+        elif python_type == bool:
+            return {"type": "boolean"}
+        elif python_type == dict or python_type == Dict:
+            return {"type": "object"}
+        elif python_type == list or python_type == List:
+            return {"type": "array"}
+        
+        # 处理泛型类型
+        if hasattr(python_type, '__origin__'):
+            origin = python_type.__origin__
+            args = python_type.__args__
+            
+            if origin is list or origin is List:
+                if args:
+                    item_type = AutoParameterExtractor._python_type_to_json_type(args[0])
+                    return {"type": "array", "items": item_type}
+                return {"type": "array"}
+            
+            elif origin is dict or origin is Dict:
+                return {"type": "object"}
+            
+            elif origin is Union:
+                # 处理Optional类型 (Union[T, None])
+                if len(args) == 2 and type(None) in args:
+                    non_none_type = args[0] if args[1] is type(None) else args[1]
+                    return AutoParameterExtractor._python_type_to_json_type(non_none_type)
+                # 处理其他Union类型，默认返回第一个类型
+                return AutoParameterExtractor._python_type_to_json_type(args[0])
+        
+        # 未知类型默认为string
+        return {"type": "string"}
+
+# 直接提取示例
+def process_user_data(
+    users: List[Dict[str, str]], 
+    filter_active: bool = True,
+    batch_size: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Process user data with filtering and batching options
+    
+    Args:
+        users: List of user dictionaries
+        filter_active: Whether to filter only active users
+        batch_size: Size of processing batches
+        
+    Returns:
+        Processed user data results
+    """
+    return {"processed": len(users), "filtered": filter_active}
+
+# 自动提取函数schema
+print("🚀 无装饰符的参数提取演示:")
+schema = AutoParameterExtractor.extract_function_schema(process_user_data)
+print("\n📋 提取的Schema:")
+import json
+print(json.dumps(schema, indent=2, ensure_ascii=False))
+
+# 输出结果：
+# 🔍 正在分析函数: process_user_data
+# 📚 函数文档: Process user data with filtering and batching options...
+#   📋 参数 users: {'type': 'array', 'items': {'type': 'object'}, 'description': 'Parameter users'}
+#   📋 参数 filter_active: {'type': 'boolean', 'description': 'Parameter filter_active', 'default': True}
+#   📋 参数 batch_size: {'type': 'integer', 'description': 'Parameter batch_size', 'default': None}
+```
+
+**增强版：从docstring自动提取参数描述**：
+```python
+import re
+from typing import Dict, Optional
+
+class EnhancedParameterExtractor(AutoParameterExtractor):
+    """增强版参数提取器，支持从docstring解析参数描述"""
+    
+    @staticmethod
+    def parse_docstring_params(docstring: str) -> Dict[str, str]:
+        """从docstring中解析参数描述"""
+        param_descriptions = {}
+        
+        if not docstring:
+            return param_descriptions
+        
+        # 匹配Google风格的docstring参数
+        # Args:
+        #     param_name: description
+        #     another_param: another description
+        args_pattern = r'Args:\s*\n((?:\s+\w+[^:]*:.*\n?)*)'
+        args_match = re.search(args_pattern, docstring, re.MULTILINE)
+        
+        if args_match:
+            args_section = args_match.group(1)
+            # 提取每个参数和描述
+            param_pattern = r'\s+(\w+)[^:]*:\s*(.+?)(?=\n\s+\w+|\n\s*$|\Z)'
+            param_matches = re.findall(param_pattern, args_section, re.MULTILINE | re.DOTALL)
+            
+            for param_name, description in param_matches:
+                param_descriptions[param_name] = description.strip()
+        
+        return param_descriptions
+    
+    @staticmethod
+    def extract_function_schema(func) -> Dict:
+        """增强版函数schema提取，包含详细的参数描述"""
+        # 1. 获取函数基本信息
+        func_name = func.__name__
+        func_doc = inspect.getdoc(func) or ""
+        
+        # 2. 解析docstring中的参数描述
+        param_descriptions = EnhancedParameterExtractor.parse_docstring_params(func_doc)
+        
+        # 3. 获取函数签名和类型提示
+        signature = inspect.signature(func)
+        type_hints = get_type_hints(func)
+        
+        print(f"🔍 正在分析函数: {func_name}")
+        print(f"📚 解析到的参数描述: {param_descriptions}")
+        
+        # 4. 解析参数
+        properties = {}
+        required = []
+        
+        for param_name, param in signature.parameters.items():
+            if param_name == 'self':
+                continue
+                
+            param_type = type_hints.get(param_name, param.annotation)
+            json_type = AutoParameterExtractor._python_type_to_json_type(param_type)
+            
+            # 使用docstring中的描述，或者生成默认描述
+            param_desc = param_descriptions.get(param_name, f"Parameter {param_name}")
+            
+            param_info = {
+                "type": json_type["type"],
+                "description": param_desc
+            }
+            
+            if "items" in json_type:
+                param_info["items"] = json_type["items"]
+            
+            properties[param_name] = param_info
+            
+            if param.default == inspect.Parameter.empty:
+                required.append(param_name)
+            else:
+                param_info["default"] = param.default
+        
+        # 5. 提取函数描述（第一行或者整体描述）
+        func_description = func_doc.split('\n')[0] if func_doc else f"Function {func_name}"
+        
+        return {
+            "type": "function",
+            "function": {
+                "name": func_name,
+                "description": func_description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                    "additionalProperties": False
+                }
+            }
+        }
+
+# 测试增强版提取器
+enhanced_schema = EnhancedParameterExtractor.extract_function_schema(process_user_data)
+print("\n🎯 增强版Schema（包含详细描述）:")
+print(json.dumps(enhanced_schema, indent=2, ensure_ascii=False))
+
+# 输出结果：
+# {
+#   "type": "function",
+#   "function": {
+#     "name": "process_user_data",
+#     "description": "Process user data with filtering and batching options",
+#     "parameters": {
+#       "type": "object",
+#       "properties": {
+#         "users": {
+#           "type": "array",
+#           "items": {"type": "object"},
+#           "description": "List of user dictionaries"
+#         },
+#         "filter_active": {
+#           "type": "boolean",
+#           "description": "Whether to filter only active users",
+#           "default": true
+#         },
+#         "batch_size": {
+#           "type": "integer",
+#           "description": "Size of processing batches",
+#           "default": null
+#         }
+#       },
+#       "required": ["users"],
+#       "additionalProperties": false
+#     }
+#   }
+# }
+
+
 
 ## 技术特性
 
@@ -136,19 +461,6 @@ def process_user_data(
     """处理用户数据并返回结果和统计信息"""
     # 系统会自动解析这些复杂类型
     pass
-```
-
-#### 智能路由匹配
-```python
-# 路由器会根据方法签名和描述进行智能匹配
-{
-    "method_signature": "process_user_data(users: List[Dict], filter_options: Optional[Dict]) -> Tuple[List[Dict], Dict]",
-    "parameter_types": {
-        "users": {"type": "List[Dict[str, Union[str, int]]]", "required": True},
-        "filter_options": {"type": "Optional[Dict[str, Any]]", "required": False}
-    },
-    "return_type": "Tuple[List[Dict], Dict[str, int]]"
-}
 ```
 
 ### 面向连接的架构
@@ -176,7 +488,6 @@ from typing import Dict, List, Optional
 @register_agent(
     name="text_processor",
     description="文本处理专家智能体",
-    category="nlp",
     version="1.0.0"
 )
 class TextProcessorAgent(BaseAgent):
@@ -257,7 +568,6 @@ def extract_keywords(self, text: str, max_keywords: int = 10) -> List[str]:
 **@register_agent 参数**：
 - `name`: 智能体唯一标识符
 - `description`: 智能体功能描述
-- `category`: 智能体分类（如 "nlp", "data_processing", "image"）
 - `version`: 版本号
 - `tags`: 可选，智能体标签列表
 - `dependencies`: 可选，依赖的其他智能体或服务
@@ -282,29 +592,6 @@ def process_complex_data(
     return {"processed": True, "count": len(data)}
 ```
 
-#### 5. 错误处理与日志
-```python
-@agent_method(description="容错处理示例")
-def robust_method(self, data: Dict) -> Dict:
-    """展示错误处理和日志记录的最佳实践"""
-    try:
-        self.logger.info(f"Processing data with {len(data)} items")
-        
-        # 数据验证
-        if not isinstance(data, dict):
-            raise ValueError("Data must be a dictionary")
-        
-        # 业务逻辑
-        result = self._process_data(data)
-        
-        self.logger.info("Data processing completed successfully")
-        return {"status": "success", "result": result}
-        
-    except Exception as e:
-        self.logger.error(f"Error processing data: {str(e)}")
-        return {"status": "error", "message": str(e)}
-```
-
 ### 最佳实践
 
 #### 1. 装饰符使用规范
@@ -313,7 +600,6 @@ def robust_method(self, data: Dict) -> Dict:
 @register_agent(
     name="image_processor",
     description="图像处理专家智能体",
-    category="computer_vision",
     version="2.1.0",
     tags=["image", "cv", "processing"],
     dependencies=["opencv", "pillow"]
@@ -553,65 +839,6 @@ class TypeHintParser:
         
         return {"type": str(type_hint)}
 ```
-
-### 智能路由算法
-```python
-# 智能路由匹配算法
-class AgentRouter:
-    def find_best_agent(self, task_description: str, required_params: Dict) -> Optional[Dict]:
-        """根据任务描述和参数找到最佳智能体"""
-        candidates = []
-        
-        for agent_name, agent_info in self.registered_agents.items():
-            for method_name, method_info in agent_info["methods"].items():
-                # 1. 语义匹配
-                semantic_score = self._calculate_semantic_similarity(
-                    task_description, 
-                    method_info["description"]
-                )
-                
-                # 2. 参数匹配
-                param_score = self._calculate_parameter_compatibility(
-                    required_params, 
-                    method_info["parameters"]
-                )
-                
-                # 3. 综合评分
-                total_score = semantic_score * 0.7 + param_score * 0.3
-                
-                if total_score > 0.6:  # 阈值
-                    candidates.append({
-                        "agent": agent_name,
-                        "method": method_name,
-                        "score": total_score,
-                        "metadata": method_info
-                    })
-        
-        # 返回最佳候选者
-        return max(candidates, key=lambda x: x["score"]) if candidates else None
-```
-
-## 系统优势
-
-- **自动化程度高**：装饰符+反射机制实现零配置注册
-- **类型安全**：完整的类型提示支持和运行时检查
-- **智能路由**：基于语义和参数匹配的智能任务分发
-- **开发友好**：简洁的API设计，优秀的开发体验
-- **可扩展性**：轻松添加新的智能体类型和功能
-- **高可用性**：单个智能体故障不影响整个系统
-- **性能优化**：智能体可以按需启动和停止
-- **元数据丰富**：完整的方法签名和文档信息
-
-## 未来发展
-
-- **智能体学习**：集成机器学习能力，让智能体自我改进
-- **分布式部署**：支持智能体在不同节点上部署
-- **可视化管理**：提供图形化的智能体管理界面
-- **性能监控**：实时监控智能体的运行状态和性能指标
-
----
-
-*本文档将随着系统的发展持续更新和完善。*
 
 
 

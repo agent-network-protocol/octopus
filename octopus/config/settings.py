@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     # ANP SDK settings
     anp_sdk_enabled: bool = True
     
+    # OpenAI settings
+    openai_api_key: Optional[str] = None
+    openai_model: str = "gpt-4-turbo-preview"
+    openai_temperature: float = 0.7
+    openai_max_tokens: int = 4000
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

@@ -1,14 +1,162 @@
 [project]
 name = "octopus"
 version = "0.1.0"
-description = "Add your description here"
+description = "面向连接的多智能体架构系统，基于装饰符和反射机制"
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [
+    {name = "Octopus Team"},
+]
+license = {text = "MIT"}
+keywords = ["multi-agent", "AI", "automation", "LLM", "OpenAI"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
 dependencies = [
-    "colorlog>=6.9.0",
+    # Core web framework
     "fastapi>=0.115.13",
+    "uvicorn[standard]>=0.34.3",
+    "python-multipart>=0.0.20",
+    
+    # Configuration and settings
     "pydantic-settings>=2.10.1",
     "python-dotenv>=1.1.1",
-    "python-multipart>=0.0.20",
-    "uvicorn[standard]>=0.34.3",
+    
+    # Logging
+    "colorlog>=6.9.0",
+    
+    # OpenAI integration
+    "openai>=1.0.0",
+    
+    # Async support
+    "httpx>=0.24.0",
+    "aiofiles>=23.0.0",
+]
+
+[project.optional-dependencies]
+# Development dependencies
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+
+# Data processing dependencies
+data = [
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+]
+
+# Distributed computing dependencies
+distributed = [
+    "redis>=4.5.0",
+    "celery>=5.3.0",
+    "dask>=2023.0.0",
+]
+
+# Communication dependencies
+communication = [
+    "websockets>=11.0",
+    "pika>=1.3.0",  # RabbitMQ
+    "kafka-python>=2.0.0",
+]
+
+# All optional dependencies
+all = [
+    "octopus[dev,data,distributed,communication]",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-username/octopus"
+Repository = "https://github.com/your-username/octopus"
+Documentation = "https://github.com/your-username/octopus#readme"
+Issues = "https://github.com/your-username/octopus/issues"
+
+[project.scripts]
+octopus = "octopus.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["octopus"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".venv",
+    ".tox",
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings",
+    "--cov=octopus",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
 ]
