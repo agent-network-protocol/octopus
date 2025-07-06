@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(brew:*)",
+      "Bash(HOMEBREW_NO_AUTO_UPDATE=1 brew install gh)",
+      "Bash(gh:*)",
+      "Bash(find:*)",
+      "Bash(chmod:*)",
+      "Bash(uv run:*)"
+    ],
+    "deny": []
+  }
+}
