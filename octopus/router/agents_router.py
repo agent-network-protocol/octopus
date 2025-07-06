@@ -241,7 +241,7 @@ def register_agent(name: str, description: str = "", version: str = "1.0.0",
         }
         
         # Discover methods with reflection
-        for method_name, method_obj in inspect.getmembers(cls, predicate=inspect.ismethod):
+        for method_name, method_obj in inspect.getmembers(cls, predicate=inspect.isfunction):
             # Skip special methods
             if method_name.startswith("_"):
                 continue
