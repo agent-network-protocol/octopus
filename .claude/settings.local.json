@@ -7,7 +7,10 @@
       "Bash(gh:*)",
       "Bash(find:*)",
       "Bash(chmod:*)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(uv sync:*)",
+      "Bash(env)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

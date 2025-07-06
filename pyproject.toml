@@ -33,7 +33,7 @@ dependencies = [
     # OpenAI integration
     "openai>=1.0.0",
     # Async support
-    "httpx>=0.24.0",
+    "httpx[socks]>=0.24.0",
     "aiofiles>=23.0.0",
 ]
 
