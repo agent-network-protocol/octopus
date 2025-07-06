@@ -29,7 +29,7 @@ class TextProcessorAgent(BaseAgent):
     @agent_method(
         description="Count words in text",
         parameters={
-            "text": {"type": "string", "description": "Text to analyze"}
+            "text": {"description": "Text to analyze"}
         },
         returns="dict"
     )
@@ -53,8 +53,8 @@ class TextProcessorAgent(BaseAgent):
     @agent_method(
         description="Extract keywords from text",
         parameters={
-            "text": {"type": "string", "description": "Text to extract keywords from"},
-            "top_n": {"type": "integer", "description": "Number of top keywords to return", "default": 10}
+            "text": {"description": "Text to extract keywords from"},
+            "top_n": {"description": "Number of top keywords to return"}
         },
         returns="list"
     )
@@ -91,7 +91,7 @@ class TextProcessorAgent(BaseAgent):
     @agent_method(
         description="Analyze text sentiment (simplified)",
         parameters={
-            "text": {"type": "string", "description": "Text to analyze sentiment"}
+            "text": {"description": "Text to analyze sentiment"}
         },
         returns="dict"
     )
@@ -141,8 +141,8 @@ class TextProcessorAgent(BaseAgent):
     @agent_method(
         description="Summarize text (extractive summary)",
         parameters={
-            "text": {"type": "string", "description": "Text to summarize"},
-            "num_sentences": {"type": "integer", "description": "Number of sentences in summary", "default": 3}
+            "text": {"description": "Text to summarize"},
+            "num_sentences": {"description": "Number of sentences in summary"}
         },
         returns="dict"
     )
