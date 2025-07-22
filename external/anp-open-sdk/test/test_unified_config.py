@@ -154,7 +154,8 @@ def test_secrets():
 
         # 测试敏感信息不在普通配置中
         secrets_dict = config.secrets.to_dict()
-        logger.info(f"✅ 敏感信息字典: {secrets_dict}")
+        sanitized_secrets = {key: 'REDACTED' for key in secrets_dict.keys()}
+        logger.info(f"✅ 敏感信息字典: {sanitized_secrets}")
 
         return True
     except Exception as e:
