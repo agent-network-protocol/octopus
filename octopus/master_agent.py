@@ -173,12 +173,25 @@ class MasterAgent(BaseAgent):
         try:
             # Get available agents and their capabilities
             available_agents = self._get_agent_capabilities()
+            self.logger.info(f"Found {len(available_agents)} available agents")
+            
+            # If no agents available, provide fallback response
+            if not available_agents:
+                return "抱歉，当前没有可用的智能体来处理您的请求。请稍后再试。"
             
             # Use OpenAI to analyze the request and select the appropriate agent
             agent_selection = self._select_agent_for_request(request, available_agents)
             
-            if not agent_selection:
-                return f"Sorry, I couldn't find an appropriate agent to handle your request: {request}"
+            # Validate agent selection
+            if not agent_selection or not agent_selection.get('agent_name'):
+                # Provide a helpful response with available capabilities
+                agent_list = [f"- {agent['name']}: {agent['description']}" for agent in available_agents]
+                return f"""抱歉，我无法确定使用哪个智能体来处理您的请求。
+
+当前可用的智能体：
+{chr(10).join(agent_list)}
+
+您可以尝试重新描述您的需求，或者直接指定要使用的功能。"""
             
             # Execute the selected agent method
             result = self._execute_agent_method(agent_selection)
@@ -191,7 +204,7 @@ class MasterAgent(BaseAgent):
                 
         except Exception as e:
             self.logger.error(f"Error processing natural language request [{request_id}]: {str(e)}")
-            return f"Sorry, I encountered an error while processing your request: {str(e)}"
+            return f"抱歉，处理您的请求时遇到错误：{str(e)}"
     
     def _select_agent_for_request(self, request: str, available_agents: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """Use OpenAI to select the most appropriate agent for the request."""
