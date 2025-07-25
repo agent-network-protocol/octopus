@@ -6,8 +6,8 @@ import asyncio
 from pathlib import Path
 from openai import AsyncAzureOpenAI
 from dotenv import load_dotenv
-from anp_examples.utils.log_base import set_log_color_level
-from anp_examples.anp_tool import ANPTool  # Import ANPTool
+from utils.log_base import set_log_color_level
+from anp_tool import ANPTool  # Import ANPTool
 from openai import AsyncOpenAI,OpenAI
 from config import validate_config, DASHSCOPE_API_KEY, DASHSCOPE_BASE_URL, DASHSCOPE_MODEL_NAME, OPENAI_API_KEY, \
     OPENAI_BASE_URL, OPENAI_MODEL
