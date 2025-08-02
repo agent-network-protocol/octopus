@@ -1,28 +1,21 @@
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List
 import os
 import json
 import logging
 import asyncio
-from pathlib import Path
-from openai import AsyncAzureOpenAI
-from dotenv import load_dotenv
-from utils.log_base import set_log_color_level
-from anp_tool import ANPTool  # Import ANPTool
-from openai import AsyncOpenAI,OpenAI
-from config import validate_config, DASHSCOPE_API_KEY, DASHSCOPE_BASE_URL, DASHSCOPE_MODEL_NAME, OPENAI_API_KEY, \
-    OPENAI_BASE_URL, OPENAI_MODEL
-
-# Get the absolute path to the root directory
-ROOT_DIR = Path(__file__).resolve().parent.parent
-
-# Load environment variables
-load_dotenv(ROOT_DIR / ".env")
-
 from datetime import datetime
+from pathlib import Path
+
+# Import configuration and utilities from the project structure
+import sys
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
+from octopus.utils.log_base import setup_enhanced_logging
+from octopus.config.settings import get_settings
+from .anp_tool import ANPTool  # Import ANPTool
+from openai import AsyncOpenAI
 
 current_date = datetime.now().strftime("%Y-%m-%d")
-
-validate_config()
 
 SEARCH_AGENT_PROMPT_TEMPLATE = f"""
 You are a general-purpose intelligent network data exploration tool. Your goal is to find the information and APIs that users need by recursively accessing various data formats (including JSON-LD, YAML, etc.) to complete specific tasks.
@@ -143,12 +136,12 @@ async def handle_tool_call(
             )
 
 
-async def simple_crawl(
+async def anp_crawler(
     user_input: str,
     task_type: str = "general",
     did_document_path: Optional[str] = None,
     private_key_path: Optional[str] = None,
-    max_documents: int = 10,
+    max_documents: int = 20,
     initial_url: str = "https://agent-search.ai/ad.json",
 ) -> Dict[str, Any]:
     """
@@ -171,45 +164,20 @@ async def simple_crawl(
 
     # Initialize ANPTool
     anp_tool = ANPTool(
-        did_document_path=did_document_path, private_key_path=private_key_path
+        did_document_path=did_document_path, 
+        private_key_path=private_key_path
     )
 
-    # Initialize Azure OpenAI client
-    # client = AsyncAzureOpenAI(
-    #     api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    #     api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-    #     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    #     azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-    # )
-
-    # 根据 MODEL_PROVIDER 环境变量选择不同的客户端
-    model_provider = os.getenv("MODEL_PROVIDER", "dashscope").lower()
-
-    if model_provider == "dashscope":
-        client = AsyncOpenAI(
-            api_key=DASHSCOPE_API_KEY,
-            base_url=DASHSCOPE_BASE_URL
-        )
-        model_name = DASHSCOPE_MODEL_NAME
-    elif model_provider == "openai":
-        # 检测是否为Azure OpenAI并相应配置
-        if 'openai.azure.com' in OPENAI_BASE_URL.lower():
-            print("检测到Azure OpenAI配置，使用Azure兼容模式")
-            client = AsyncOpenAI(
-                api_key=OPENAI_API_KEY,
-                base_url=OPENAI_BASE_URL,
-                default_headers={"api-key": OPENAI_API_KEY},  # Azure特有的认证header
-                default_query={"api-version": "2024-02-01"},   # Azure必需的API版本
-            )
-        else:
-            print("检测到标准OpenAI配置")
-            client = AsyncOpenAI(
-                api_key=OPENAI_API_KEY,
-                base_url=OPENAI_BASE_URL
-            )
-        model_name = OPENAI_MODEL
-    else:
-        raise ValueError(f"Unsupported MODEL_PROVIDER: {model_provider}")
+    # Get settings
+    settings = get_settings()
+    if not settings.openai_api_key:
+        raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY in environment or .env file.")
+    
+    client = AsyncOpenAI(
+        api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url
+    )
+    logging.info(f"Using OpenAI with model: {settings.openai_model}")
 
     # Get initial URL content
     try:
@@ -265,7 +233,7 @@ async def simple_crawl(
 
         # Get model response
         completion = await client.chat.completions.create(
-            model = model_name,
+            model = settings.openai_model,
             messages = messages,
             tools = get_available_tools(anp_tool),
             tool_choice = "auto",
@@ -323,19 +291,28 @@ async def simple_crawl(
 
 async def main():
     """Main function"""
+    
+    # Initialize enhanced logging
+    setup_enhanced_logging(level=logging.INFO)
+    
+    # Get settings
+    settings = get_settings()
 
-    # Get DID path
-    current_dir = Path(__file__).parent
-    base_dir = current_dir.parent
-    did_document_path = str(base_dir / "use_did_test_public/did.json")
-    private_key_path = str(base_dir / "use_did_test_public/key-1_private.pem")
+    # Get DID paths from settings or environment variables or use defaults
+    did_document_path = (
+        os.getenv("DID_DOCUMENT_PATH") or 
+        settings.did_document_path or
+        str(Path(__file__).parent.parent.parent.parent / "docs/user_public/did.json")
+    )
+    private_key_path = (
+        os.getenv("DID_PRIVATE_KEY_PATH") or 
+        settings.did_private_key_path or
+        str(Path(__file__).parent.parent.parent.parent / "docs/user_public/private_keys.json")
+    )
 
-    from datetime import datetime, timedelta
-
-    # Get the current date plus 3 days
-    booking_date = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
-
-    # Test task
+    # Test task examples (uncomment and modify as needed)
+    # from datetime import datetime, timedelta
+    # booking_date = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
     # task = {
     #     "input": f"I need to book a hotel in Hangzhou: {booking_date}, for 1 day, coordinates (120.026208, 30.279212). Please handle it step by step: First, choose a good hotel yourself, then help me choose a room. Finally, tell me the details of your choice.",
     #     "type": "hotel_booking",
@@ -365,7 +342,7 @@ async def main():
     print(f"User Input: {task['input']}")
 
     # Use simplified crawling logic
-    result = await simple_crawl(
+    result = await anp_crawler(
         task["input"],
         task["type"],
         did_document_path=did_document_path,
@@ -385,5 +362,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    set_log_color_level(logging.DEBUG)
     asyncio.run(main())

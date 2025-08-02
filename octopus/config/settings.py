@@ -2,8 +2,6 @@
 Application settings and configuration.
 """
 
-import logging
-import os
 from typing import Optional
 from pydantic_settings import BaseSettings
 
@@ -32,7 +30,7 @@ class Settings(BaseSettings):
     anp_sdk_enabled: bool = True
     
     # Model Provider settings
-    model_provider: str = "openai"  # Currently only supports "openai"
+    model_provider: str = "openai"  # Only supports "openai"
     
     # OpenAI settings
     openai_api_key: Optional[str] = None
@@ -42,6 +40,23 @@ class Settings(BaseSettings):
     openai_api_version: Optional[str] = None
     openai_temperature: Optional[float] = None
     openai_max_tokens: Optional[int] = None
+    
+    # DID Authentication settings
+    did_document_path: str = "did.json"
+    did_private_key_path: str = "key-1_private.pem"
+    
+    # DID Authentication server settings
+    nonce_expiration_minutes: int = 5
+    timestamp_expiration_minutes: int = 5
+    did_documents_path: str = "did_keys"
+    did_document_filename: str = "did.json"
+    local_port: int = 8000
+    
+    # JWT settings
+    jwt_algorithm: Optional[str] = None
+    access_token_expire_minutes: Optional[int] = None
+    jwt_private_key_path: Optional[str] = None
+    jwt_public_key_path: Optional[str] = None
     
     class Config:
         env_file = ".env"

@@ -14,6 +14,12 @@ from octopus.config.settings import get_settings
 from octopus.master_agent import MasterAgent
 from octopus.agents.message_agent.message_agent import MessageAgent
 from octopus.api.chat_router import router as chat_router, set_agents
+from octopus.api.ad_router import router as ad_router
+from octopus.anp_sdk.anp_auth.auth_middleware import auth_middleware
+
+# Import ANP Crawler test functionality
+import asyncio
+from octopus.test_scripts.test_anp_crawler import run_anp_crawler_integration_test
 
 # Initialize logging using setup_enhanced_logging at the main entry point
 settings = get_settings()
@@ -87,11 +93,18 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add authentication middleware
+app.middleware("http")(auth_middleware)
+logger.info("Authentication middleware added to FastAPI application")
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="web"), name="static")
 
 # Include chat router
-app.include_router(chat_router, prefix="/api/v1", tags=["chat"])
+app.include_router(chat_router, prefix="/v1", tags=["chat"])
+
+# Include agent description router
+app.include_router(ad_router, tags=["agents"])
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -116,7 +129,7 @@ async def health_check():
     return {"status": "healthy"}
 
 
-@app.get("/api/v1/info")
+@app.get("/v1/info")
 async def get_info():
     """Get application information."""
     logger.info("Application info endpoint accessed")

@@ -72,7 +72,7 @@ class AgentSchemaGenerator:
                         "deprecated": method_info.deprecated
                     }
                 },
-                "url": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}/api/agents/jsonrpc"
+                "url": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}/agents/jsonrpc"
             }
             interfaces.append(interface)
         
@@ -131,7 +131,7 @@ class AgentSchemaGenerator:
         return type_mapping.get(python_type, "string")
 
 
-@router.get("/agents/ad.json")
+@router.get("/ad.json")
 async def get_agents_description():
     """
     Provide comprehensive agent description information with JSON-RPC interfaces.
@@ -171,7 +171,7 @@ async def get_agents_description():
                 "ad": "https://agent-network-protocol.com/ad#",
             },
             "@type": "ad:AgentDescription",
-            "@id": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}/api/agents/ad.json",
+            "@id": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}/ad.json",
             "name": "Octopus Multi-Agent System",
             "did": f"did:wba:{DID_DOMAIN}:{DID_PATH}",
             "description": "A multi-agent system providing intelligent task delegation and natural language processing. The master agent coordinates with specialized sub-agents to handle various tasks including text processing, data analysis, and more.",
@@ -221,7 +221,7 @@ async def get_agents_description():
                 "name": f"{agent['name']} capabilities",
                 "description": agent['description'],
                 "mimeType": "application/json",
-                "url": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}/api/agents/{agent['name']}/info"
+                "url": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}/agents/{agent['name']}/info"
             }
             agent_description["ad:resources"].append(resource_item)
         

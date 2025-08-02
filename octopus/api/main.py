@@ -43,7 +43,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(ad_router, prefix="/api", tags=["agents"])
+app.include_router(ad_router, tags=["agents"])
 
 @app.get("/")
 async def root():
@@ -53,8 +53,8 @@ async def root():
         "version": settings.app_version,
         "description": "Octopus Multi-Agent System API",
         "endpoints": {
-            "agents_description": "/api/agents/ad.json",
-            "jsonrpc": "/api/agents/jsonrpc",
+            "agents_description": "/ad.json",
+            "jsonrpc": "/agents/jsonrpc",
             "docs": "/docs"
         }
     }

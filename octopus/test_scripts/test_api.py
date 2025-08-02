@@ -30,7 +30,7 @@ async def test_agent_description():
     
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{BASE_URL}/api/agents/ad.json")
+            response = await client.get(f"{BASE_URL}/ad.json")
             
             if response.status_code == 200:
                 data = response.json()
@@ -65,7 +65,7 @@ async def test_agents_list():
     
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{BASE_URL}/api/agents")
+            response = await client.get(f"{BASE_URL}/agents")
             
             if response.status_code == 200:
                 data = response.json()
@@ -102,7 +102,7 @@ async def test_jsonrpc_call():
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                f"{BASE_URL}/api/agents/jsonrpc",
+                f"{BASE_URL}/agents/jsonrpc",
                 json=jsonrpc_request,
                 headers={"Content-Type": "application/json"}
             )
@@ -140,7 +140,7 @@ async def test_master_agent_call():
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                f"{BASE_URL}/api/agents/jsonrpc",
+                f"{BASE_URL}/agents/jsonrpc",
                 json=jsonrpc_request,
                 headers={"Content-Type": "application/json"}
             )
@@ -171,7 +171,7 @@ async def test_agent_info():
     async with httpx.AsyncClient() as client:
         try:
             # Test text processor agent info
-            response = await client.get(f"{BASE_URL}/api/agents/text_processor/info")
+            response = await client.get(f"{BASE_URL}/agents/text_processor/info")
             
             if response.status_code == 200:
                 data = response.json()

@@ -3,13 +3,21 @@ Bearer token authentication module.
 """
 
 import logging
+import sys
 from typing import Optional, Dict
 from datetime import datetime, timedelta
+from pathlib import Path
 import jwt
 from fastapi import HTTPException
 
-from core.config import settings
-from auth.jwt_keys import get_jwt_public_key, get_jwt_private_key
+# Add project root to path for imports
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
+from octopus.config.settings import get_settings
+from .jwt_keys import get_jwt_public_key, get_jwt_private_key
+
+# Get settings
+settings = get_settings()
 
 
 def create_access_token(data: Dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -31,12 +39,12 @@ def create_access_token(data: Dict, expires_delta: Optional[timedelta] = None) -
     
     # Add expiration time (exp)
     expires = now + (
-        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expires_delta or timedelta(minutes=settings.access_token_expire_minutes or 60)
     )
     to_encode.update({"exp": expires})
 
     # Get private key for signing
-    private_key = get_jwt_private_key()
+    private_key = get_jwt_private_key(settings.jwt_private_key_path)
     if not private_key:
         logging.error("Failed to load JWT private key")
         raise HTTPException(
@@ -44,7 +52,7 @@ def create_access_token(data: Dict, expires_delta: Optional[timedelta] = None) -
         )
 
     # Create the JWT token using RS256 algorithm with private key
-    encoded_jwt = jwt.encode(to_encode, private_key, algorithm=settings.JWT_ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, private_key, algorithm=settings.jwt_algorithm or "RS256")
     return encoded_jwt
 
 
@@ -67,7 +75,7 @@ async def handle_bearer_auth(token: str) -> Dict:
             token = token[7:]
 
         # Get public key for verification
-        public_key = get_jwt_public_key()
+        public_key = get_jwt_public_key(settings.jwt_public_key_path)
         if not public_key:
             logging.error("Failed to load JWT public key")
             raise HTTPException(
@@ -76,7 +84,7 @@ async def handle_bearer_auth(token: str) -> Dict:
             )
 
         # Decode and verify the token using the public key
-        payload = jwt.decode(token, public_key, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(token, public_key, algorithms=[settings.jwt_algorithm or "RS256"])
 
         # Check if token contains required fields
         if "sub" not in payload:

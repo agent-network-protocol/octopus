@@ -24,6 +24,12 @@
 - **运行**: `uv run python -m test_scripts.simple_openai_test`
 - **描述**: 测试 OpenAI API 连接是否正常，验证配置是否正确
 
+### 5. test_anp_crawler.py
+- **功能**: ANP 爬虫集成测试，包括 DID 身份验证
+- **运行**: `uv run python -m test_scripts.test_anp_crawler`
+- **描述**: 测试 ANP 爬虫访问本地 /ad.json 端点，验证 DID 认证和中间件功能
+- **自动运行**: 在 FastAPI 服务器启动后自动作为后台任务运行
+
 ## 使用方法
 
 1. 确保已安装依赖：

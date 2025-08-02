@@ -82,7 +82,7 @@ class OctopusChat {
     
     async checkSystemStatus() {
         try {
-            const response = await fetch('/api/v1/status');
+            const response = await fetch('/v1/status');
             const data = await response.json();
             
             if (data.status === 'healthy') {
@@ -142,7 +142,7 @@ class OctopusChat {
         
         try {
             // Send request to backend
-            const response = await fetch('/api/v1/chat', {
+            const response = await fetch('/v1/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

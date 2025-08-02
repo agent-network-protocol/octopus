@@ -1,13 +1,17 @@
-import asyncio
 import json
 import yaml
 import aiohttp
 import os
+import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
 import logging
 
+# Import configuration and utilities from the project structure
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
 from agent_connect.authentication import DIDWbaAuthHeader
+from octopus.config.settings import get_settings
 
 
 class ANPTool:
@@ -61,40 +65,31 @@ class ANPTool:
         Initialize ANPTool with DID authentication
 
         Args:
-            did_document_path (str, optional): Path to DID document file. If None, will use default path.
-            private_key_path (str, optional): Path to private key file. If None, will use default path.
+            did_document_path (str, optional): Path to DID document file. If None, will use settings or default path.
+            private_key_path (str, optional): Path to private key file. If None, will use settings or default path.
         """
         super().__init__(**data)
 
-        # Get current script directory
-        current_dir = Path(__file__).parent
-        # Get project root directory
-        base_dir = current_dir.parent
-
-        # Use provided paths or default paths
-        if did_document_path is None:
-            # Try to get from environment variable first
-            did_document_path = os.environ.get("DID_DOCUMENT_PATH")
-            if did_document_path is None:
-                # Use default path
-                did_document_path = str(base_dir / "use_did_test_public/did.json")
-
-        if private_key_path is None:
-            # Try to get from environment variable first
-            private_key_path = os.environ.get("DID_PRIVATE_KEY_PATH")
-            if private_key_path is None:
-                # Use default path
-                private_key_path = str(
-                    base_dir / "use_did_test_public/key-1_private.pem"
-                )
+        # Check if paths are empty and raise exception if they are
+        if not did_document_path or did_document_path.strip() == "":
+            raise ValueError("DID document path cannot be empty")
+        
+        if not private_key_path or private_key_path.strip() == "":
+            raise ValueError("Private key path cannot be empty")
 
         logging.info(
-            f"ANPTool initialized - DID path: {did_document_path}, private key path: {private_key_path}"
+            f"ANPTool initialized - DID document path: {did_document_path}, private key path: {private_key_path}"
         )
 
-        self.auth_client = DIDWbaAuthHeader(
-            did_document_path=did_document_path, private_key_path=private_key_path
-        )
+        try:
+            self.auth_client = DIDWbaAuthHeader(
+                did_document_path=did_document_path, 
+                private_key_path=private_key_path
+            )
+            logging.info("DID authentication client initialized successfully")
+        except Exception as e:
+            logging.error(f"Failed to initialize DID authentication client: {str(e)}")
+            self.auth_client = None
 
     async def execute(
         self,

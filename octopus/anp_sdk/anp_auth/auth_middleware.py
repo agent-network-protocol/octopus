@@ -7,18 +7,18 @@ from typing import Optional, Callable
 from fastapi import Request, HTTPException, Response
 from fastapi.responses import JSONResponse
 
-from auth.did_auth import handle_did_auth, get_and_validate_domain
-from auth.token_auth import handle_bearer_auth
-
+from .did_auth import handle_did_auth, get_and_validate_domain 
+from .token_auth import handle_bearer_auth
 
 # Define exempt paths that don't require authentication
 EXEMPT_PATHS = [
+    "/health",
     "/docs",
     "/redoc",
     "/openapi.json",
     "/wba/user/",  # Allow access to DID documents
     "/",  # Allow access to root endpoint
-    "/agents/example/ad.json",  # Allow access to agent description
+    "/ad.json",  # Allow access to agent description
 ]  # "/wba/test" path removed from exempt list, now requires authentication
 
 
@@ -69,9 +69,6 @@ async def authenticate_request(request: Request) -> Optional[dict]:
 
     # Check if path is exempt from authentication
     for exempt_path in EXEMPT_PATHS:
-        logging.info(
-            f"Checking if {request.url.path} matches exempt path {exempt_path}"
-        )
         # Special handling for root path "/", it should only match exactly
         if exempt_path == "/":
             if request.url.path == "/":
@@ -88,9 +85,6 @@ async def authenticate_request(request: Request) -> Optional[dict]:
             )
             return None
 
-    # Special check for /wba/test path to ensure it's not treated as exempt
-    if request.url.path == "/wba/test":
-        logging.info("Path /wba/test requires authentication (special check)")
 
     logging.info(f"Path {request.url.path} requires authentication")
 
@@ -115,6 +109,7 @@ async def auth_middleware(request: Request, call_next: Callable) -> Response:
         headers = dict(request.headers)  # Read request headers
         request.state.headers = headers
         logging.info(f"Authenticated user: {request.state.headers}")
+        logging.info(f"Authenticated Response auth: {response_auth}")
         headers = dict(request.headers)  # Read request headers
         request.state.headers = headers  # Store in request.state
         

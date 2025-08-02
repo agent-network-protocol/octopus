@@ -7,9 +7,13 @@ import logging
 import traceback
 import secrets
 import aiohttp
+import sys
 from typing import Dict, Tuple, Optional, Any
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+# Add project root to path for imports
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from fastapi import Request, HTTPException
 from agent_connect.authentication import (
@@ -20,10 +24,13 @@ from agent_connect.authentication import (
     DIDWbaAuthHeader,
 )
 
-from auth.custom_did_resolver import resolve_local_did_document
+from .custom_did_resolver import resolve_local_did_document
 
-from core.config import settings
-from auth.token_auth import create_access_token
+from octopus.config.settings import get_settings
+from .token_auth import create_access_token
+
+# Get settings
+settings = get_settings()
 
 # Store server-generated nonces
 VALID_SERVER_NONCES: Dict[str, datetime] = {}
@@ -45,7 +52,7 @@ def is_valid_server_nonce(nonce: str) -> bool:
     # Clean up expired nonces first
     expired_nonces = [
         n for n, t in VALID_SERVER_NONCES.items()
-        if current_time - t > timedelta(minutes=settings.NONCE_EXPIRATION_MINUTES)
+        if current_time - t > timedelta(minutes=settings.nonce_expiration_minutes)
     ]
     for n in expired_nonces:
         del VALID_SERVER_NONCES[n]
@@ -82,7 +89,7 @@ def verify_timestamp(timestamp_str: str) -> bool:
         time_diff = abs((current_time - request_time).total_seconds() / 60)
 
         # Verify timestamp is within valid period
-        if time_diff > settings.TIMESTAMP_EXPIRATION_MINUTES:
+        if time_diff > settings.timestamp_expiration_minutes:
             logging.error(
                 f"Timestamp expired. Current time: {current_time}, Request time: {request_time}, Difference: {time_diff} minutes"
             )
@@ -229,8 +236,8 @@ async def generate_or_load_did(unique_id: str = None) -> Tuple[Dict, Dict, str]:
 
     # Check if DID document already exists
     current_dir = Path(__file__).parent.parent.absolute()
-    user_dir = current_dir / settings.DID_DOCUMENTS_PATH / f"user_{unique_id}"
-    did_path = user_dir / settings.DID_DOCUMENT_FILENAME
+    user_dir = current_dir / settings.did_documents_path / f"user_{unique_id}"
+    did_path = user_dir / settings.did_document_filename
 
     if did_path.exists():
         logging.info(f"Loading existing DID document from {did_path}")
@@ -249,9 +256,9 @@ async def generate_or_load_did(unique_id: str = None) -> Tuple[Dict, Dict, str]:
     host = "localhost"
     did_document, keys = create_did_wba_document(
         hostname=host,
-        port=settings.LOCAL_PORT,
+        port=settings.local_port,
         path_segments=["wba", "user", unique_id],
-        agent_description_url=f"http://{host}:{settings.LOCAL_PORT}/agents/example/ad.json",
+        agent_description_url=f"http://{host}:{settings.local_port}/agents/example/ad.json",
     )
 
     # Save private key and DID document
