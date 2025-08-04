@@ -10,7 +10,7 @@ from datetime import datetime
 from openai import OpenAI, AsyncOpenAI
 
 from octopus.agents.base_agent import BaseAgent
-from octopus.router.agents_router import router, register_agent, agent_method
+from octopus.router.agents_router import router, register_agent, agent_interface
 from octopus.config.settings import get_settings
 
 
@@ -149,7 +149,7 @@ class MasterAgent(BaseAgent):
         
         return capabilities
     
-    @agent_method(
+    @agent_interface(
         description="Process natural language request and delegate to appropriate agent",
         parameters={
             "request": {"type": "string", "description": "Natural language request or task"},
@@ -309,7 +309,7 @@ If no suitable agent is found, respond with:
             self.logger.error(f"Error executing agent method: {str(e)}")
             raise
     
-    @agent_method(
+    @agent_interface(
         description="Get current status of the master agent",
         parameters={},
         returns="dict"

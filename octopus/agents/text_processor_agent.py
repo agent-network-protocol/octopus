@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Any
 from collections import Counter
 
 from octopus.agents.base_agent import BaseAgent
-from octopus.router.agents_router import register_agent, agent_method
+from octopus.router.agents_router import register_agent, agent_interface
 
 
 @register_agent(
@@ -26,7 +26,7 @@ class TextProcessorAgent(BaseAgent):
             description="Handles text analysis and processing tasks"
         )
         
-    @agent_method(
+    @agent_interface(
         description="Count words in text",
         parameters={
             "text": {"description": "Text to analyze"}
@@ -50,7 +50,7 @@ class TextProcessorAgent(BaseAgent):
             "average_word_length": sum(len(word) for word in words) / len(words) if words else 0
         }
     
-    @agent_method(
+    @agent_interface(
         description="Extract keywords from text",
         parameters={
             "text": {"description": "Text to extract keywords from"},
@@ -88,7 +88,7 @@ class TextProcessorAgent(BaseAgent):
             for word, freq in top_keywords
         ]
     
-    @agent_method(
+    @agent_interface(
         description="Analyze text sentiment (simplified)",
         parameters={
             "text": {"description": "Text to analyze sentiment"}
@@ -138,7 +138,7 @@ class TextProcessorAgent(BaseAgent):
             "negative_words": negative_count
         }
     
-    @agent_method(
+    @agent_interface(
         description="Summarize text (extractive summary)",
         parameters={
             "text": {"description": "Text to summarize"},

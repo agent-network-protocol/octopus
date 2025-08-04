@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 
 from octopus.agents.base_agent import BaseAgent
-from octopus.router.agents_router import register_agent, agent_method
+from octopus.router.agents_router import register_agent, agent_interface
 
 
 @dataclass
@@ -66,7 +66,7 @@ class MessageAgent(BaseAgent):
         
         self.logger.info("MessageAgent initialized successfully")
     
-    @agent_method(
+    @agent_interface(
         description="Send a message to a recipient",
         parameters={
             "message_content": {"description": "Content of the message to send"},
@@ -142,7 +142,7 @@ class MessageAgent(BaseAgent):
                 "status": "failed"
             }
     
-    @agent_method(
+    @agent_interface(
         description="Receive a message from a sender",
         parameters={
             "message_content": {"description": "Content of the received message"},
@@ -216,7 +216,7 @@ class MessageAgent(BaseAgent):
                 "status": "failed"
             }
     
-    @agent_method(
+    @agent_interface(
         description="Get message history for a specific conversation",
         parameters={
             "other_did": {"description": "DID of the other party in the conversation"},
@@ -273,7 +273,7 @@ class MessageAgent(BaseAgent):
                 "messages": []
             }
     
-    @agent_method(
+    @agent_interface(
         description="Get message statistics",
         parameters={},
         returns="dict"
@@ -306,7 +306,7 @@ class MessageAgent(BaseAgent):
                 "statistics": {}
             }
     
-    @agent_method(
+    @agent_interface(
         description="Clear message history",
         parameters={
             "conversation_did": {"description": "DID to clear conversation with (optional, clears all if not specified)"}

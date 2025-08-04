@@ -1,365 +1,309 @@
-from typing import Optional, Dict, Any, List
-import os
-import json
-import logging
-import asyncio
-from datetime import datetime
-from pathlib import Path
+"""
+ANP Crawler Management Module
 
-# Import configuration and utilities from the project structure
-import sys
-sys.path.append(str(Path(__file__).parent.parent.parent))
-
-from octopus.utils.log_base import setup_enhanced_logging
-from octopus.config.settings import get_settings
-from .anp_tool import ANPTool  # Import ANPTool
-from openai import AsyncOpenAI
-
-current_date = datetime.now().strftime("%Y-%m-%d")
-
-SEARCH_AGENT_PROMPT_TEMPLATE = f"""
-You are a general-purpose intelligent network data exploration tool. Your goal is to find the information and APIs that users need by recursively accessing various data formats (including JSON-LD, YAML, etc.) to complete specific tasks.
-
-## Current Task
-{{task_description}}
-
-## Important Notes
-1. You will receive an initial URL ({{initial_url}}), which is an agent description file.
-2. You need to understand the structure, functionality, and API usage methods of this agent.
-3. You need to continuously discover and access new URLs and API endpoints like a web crawler.
-4. You can use anp_tool to get the content of any URL.
-5. This tool can handle various response formats, including:
-   - JSON format: Will be directly parsed into JSON objects.
-   - YAML format: Will return text content, and you need to analyze its structure.
-   - Other text formats: Will return raw text content.
-6. Read each document to find information or API endpoints related to the task.
-7. You need to decide the crawling path yourself, don't wait for user instructions.
-8. Note: You can crawl up to 10 URLs, and must end the search after reaching this limit.
-
-## Crawling Strategy
-1. First get the content of the initial URL to understand the structure and APIs of the agent.
-2. Identify all URLs and links in the document, especially fields like serviceEndpoint, url, @id, etc.
-3. Analyze API documentation to understand API usage, parameters, and return values.
-4. Build appropriate requests based on API documentation to find the needed information.
-5. Record all URLs you've visited to avoid repeated crawling.
-6. Summarize all relevant information you found and provide detailed recommendations.
-
-## Workflow
-1. Get the content of the initial URL and understand the agent's functionality.
-2. Analyze the content to find all possible links and API documentation.
-3. Parse API documentation to understand API usage.
-4. Build requests according to task requirements to get the needed information.
-5. Continue exploring relevant links until sufficient information is found.
-6. Summarize the information and provide the most appropriate recommendations to the user.
-
-## JSON-LD Data Parsing Tips
-1. Pay attention to the @context field, which defines the semantic context of the data.
-2. The @type field indicates the type of entity, helping you understand the meaning of the data.
-3. The @id field is usually a URL that can be further accessed.
-4. Look for fields such as serviceEndpoint, url, etc., which usually point to APIs or more data.
-
-Provide detailed information and clear explanations to help users understand the information you found and your recommendations.
-
-## Date
-Current date: {current_date}
+This module provides the main interface for interacting with ANP (Agent Network Protocol) resources.
+It manages crawling sessions, caches results, and coordinates different components.
 """
 
-# Global variable
-initial_url = "https://agent-search.ai/ad.json"
+import logging
+from typing import Optional, Dict, List, Tuple, Any
+from datetime import datetime
+from urllib.parse import urlparse, urlunparse
+
+from .anp_client import ANPClient
+from .anp_parser import ANPDocumentParser
+from .anp_interface import ANPInterface
+
+logger = logging.getLogger(__name__)
 
 
-# Define available tools
-def get_available_tools(anp_tool_instance):
-    """Get the list of available tools"""
-    return [
-        {
-            "type": "function",
-            "function": {
-                "name": "anp_tool",
-                "description": anp_tool_instance.description,
-                "parameters": anp_tool_instance.parameters,
-            },
-        }
-    ]
-
-
-async def handle_tool_call(
-    tool_call: Any,
-    messages: List[Dict],
-    anp_tool: ANPTool,
-    crawled_documents: List[Dict],
-    visited_urls: set,
-) -> None:
-    """Handle tool call"""
-    function_name = tool_call.function.name
-    function_args = json.loads(tool_call.function.arguments)
-
-    if function_name == "anp_tool":
-        url = function_args.get("url")
-        method = function_args.get("method", "GET")
-        headers = function_args.get("headers", {})
-        params = function_args.get("params", {})
-        body = function_args.get("body")
-
+class ANPCrawler:
+    """
+    Main Crawler class for ANP crawling and content fetching.
+    
+    This class provides unified interfaces for fetching different types of content
+    and extracting interface definitions in OpenAI Tools format.
+    """
+    
+    def __init__(
+        self, 
+        did_document_path: str, 
+        private_key_path: str,
+        cache_enabled: bool = True
+    ):
+        """
+        Initialize ANP session with DID authentication.
+        
+        Args:
+            did_document_path: Path to DID document file
+            private_key_path: Path to private key file
+            cache_enabled: Whether to enable URL caching
+        """
+        self.did_document_path = did_document_path
+        self.private_key_path = private_key_path
+        self.cache_enabled = cache_enabled
+        
+        # Initialize components
+        self._client = None  # ANPClient instance
+        self._parser = None  # ANPDocumentParser instance
+        self._interface_converter = None  # ANPInterface instance
+        
+        # Session state
+        self._visited_urls: set = set()
+        self._cache: Dict[str, Any] = {}
+        self._agent_description_uri: Optional[str] = None  # Track first URL as agent description URI
+        
+        # Initialize components
+        self._initialize_components()
+    
+    def _initialize_components(self):
+        """Initialize internal components."""
+        logger.info("Initializing ANP session components")
+        
+        # Initialize HTTP client with DID authentication
+        self._client = ANPClient(
+            did_document_path=self.did_document_path,
+            private_key_path=self.private_key_path
+        )
+        
+        # Initialize document parser
+        self._parser = ANPDocumentParser()
+        
+        # Initialize interface converter
+        self._interface_converter = ANPInterface()
+        
+        logger.info("ANP session components initialized successfully")
+    
+    async def fetch_text(self, url: str) -> Tuple[Dict, List]:
+        """
+        Fetch text content (JSON, YAML, plain text, etc.) from a URL.
+        
+        This method handles:
+        - Agent Description files (JSON-LD)
+        - Interface definition files (JSON-RPC, YAML, MCP)
+        - Plain text documents
+        
+        Args:
+            url: URL to fetch content from
+            
+        Returns:
+            tuple: (content_json, interfaces_list)
+            - content_json: Dictionary with agentDescriptionURI, contentURI, content
+            - interfaces_list: List of interfaces in OpenAI Tools format
+        """
+        logger.info(f"Fetching text content from: {url}")
+        
+        # Set agent description URI on first fetch
+        if self._agent_description_uri is None:
+            self._agent_description_uri = self._remove_url_params(url)
+        
+        # Check cache first
+        if self.cache_enabled:
+            cached_result = self._cache_get(url)
+            if cached_result:
+                logger.info(f"Using cached result for: {url}")
+                return cached_result
+        
         try:
-            # Use ANPTool to get URL content
-            result = await anp_tool.execute(
-                url=url, method=method, headers=headers, params=params, body=body
-            )
-            logging.info(f"ANPTool response [url: {url}]")
-
-            # Record visited URLs and obtained content
-            visited_urls.add(url)
-            crawled_documents.append({"url": url, "method": method, "content": result})
-
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": json.dumps(result, ensure_ascii=False),
+            # Add to visited URLs
+            self._visited_urls.add(url)
+            
+            # Fetch content using HTTP client
+            response_data = await self._client.fetch_url(url)
+            
+            if not response_data.get("success", False):
+                error_content = {
+                    "agentDescriptionURI": self._agent_description_uri or self._remove_url_params(url),
+                    "contentURI": self._remove_url_params(url),
+                    "content": f"Error: {response_data.get('error', 'Unknown error')}"
                 }
-            )
-        except Exception as e:
-            logging.error(f"Error using ANPTool for URL {url}: {str(e)}")
-
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": json.dumps(
-                        {
-                            "error": f"Failed to use ANPTool for URL: {url}",
-                            "message": str(e),
-                        }
-                    ),
-                }
-            )
-
-
-async def anp_crawler(
-    user_input: str,
-    task_type: str = "general",
-    did_document_path: Optional[str] = None,
-    private_key_path: Optional[str] = None,
-    max_documents: int = 20,
-    initial_url: str = "https://agent-search.ai/ad.json",
-) -> Dict[str, Any]:
-    """
-    Simplified crawling logic: let the model decide the crawling path autonomously
-
-    Args:
-        user_input: Task description input by the user
-        task_type: Task type
-        did_document_path: DID document path
-        private_key_path: Private key path
-        max_documents: Maximum number of documents to crawl
-        initial_url: Initial URL to start crawling from
-
-    Returns:
-        Dictionary containing the crawl results
-    """
-    # Initialize variables
-    visited_urls = set()
-    crawled_documents = []
-
-    # Initialize ANPTool
-    anp_tool = ANPTool(
-        did_document_path=did_document_path, 
-        private_key_path=private_key_path
-    )
-
-    # Get settings
-    settings = get_settings()
-    if not settings.openai_api_key:
-        raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY in environment or .env file.")
-    
-    client = AsyncOpenAI(
-        api_key=settings.openai_api_key,
-        base_url=settings.openai_base_url
-    )
-    logging.info(f"Using OpenAI with model: {settings.openai_model}")
-
-    # Get initial URL content
-    try:
-        initial_content = await anp_tool.execute(url=initial_url)
-        visited_urls.add(initial_url)
-        crawled_documents.append(
-            {"url": initial_url, "method": "GET", "content": initial_content}
-        )
-
-        logging.info(f"Successfully obtained initial URL: {initial_url}")
-    except Exception as e:
-        logging.error(f"Failed to obtain initial URL {initial_url}: {str(e)}")
-        return {
-            "content": f"Failed to obtain initial URL: {str(e)}",
-            "type": "error",
-            "visited_urls": [],
-            "crawled_documents": [],
-        }
-
-    # Create initial message
-    formatted_prompt = SEARCH_AGENT_PROMPT_TEMPLATE.format(
-        task_description=user_input, initial_url=initial_url
-    )
-
-    messages = [
-        {"role": "system", "content": formatted_prompt},
-        {"role": "user", "content": user_input},
-        {
-            "role": "system",
-            "content": f"I have obtained the content of the initial URL. Here is the description data of the search agent:\n\n```json\n{json.dumps(initial_content, ensure_ascii=False, indent=2)}\n```\n\nPlease analyze this data, understand the functions and API usage of the search agent. Find the links you need to visit, and use the anp_tool to get more information to complete the user's task.",
-        },
-    ]
-
-    # Start conversation loop
-    current_iteration = 0
-
-    while current_iteration < max_documents:
-        current_iteration += 1
-        logging.info(f"Starting crawl iteration {current_iteration}/{max_documents}")
-
-        # Check if the maximum number of documents to crawl has been reached
-        if len(crawled_documents) >= max_documents:
-            logging.info(
-                f"Reached the maximum number of documents to crawl {max_documents}, stopping crawl"
-            )
-            # Add a message to inform the model that the maximum number of crawls has been reached
-            messages.append(
-                {
-                    "role": "system",
-                    "content": f"You have crawled {len(crawled_documents)} documents, reaching the maximum crawl limit of {max_documents}. Please make a final summary based on the information obtained.",
-                }
-            )
-
-        # Get model response
-        completion = await client.chat.completions.create(
-            model = settings.openai_model,
-            messages = messages,
-            tools = get_available_tools(anp_tool),
-            tool_choice = "auto",
-        )
-
-        response_message = completion.choices[0].message
-        messages.append(
-            {
-                "role": "assistant",
-                "content": response_message.content,
-                "tool_calls": response_message.tool_calls,
+                return error_content, []
+            
+            # Extract text content
+            raw_text = response_data.get("text", "")
+            content_type = response_data.get("content_type", "")
+            
+            # Parse document to extract interfaces
+            parsed_data = self._parser.parse_document(raw_text, content_type, url)
+            
+            # Convert interfaces to OpenAI Tools format
+            interfaces_list = []
+            if parsed_data.get("interfaces"):
+                for interface_data in parsed_data["interfaces"]:
+                    converted_interface = self._interface_converter.convert_to_openai_tools(interface_data)
+                    if converted_interface:
+                        interfaces_list.append(converted_interface)
+            
+            # Build content JSON according to new format
+            content_json = {
+                "agentDescriptionURI": self._agent_description_uri,
+                "contentURI": self._remove_url_params(url),
+                "content": raw_text
             }
-        )
-
-        # debug code
-        logging.info(f"Model response: {response_message.content}")
-        logging.info(f"Tool calls: {response_message.tool_calls}")
-
-        # Check if the conversation should end
-        if not response_message.tool_calls:
-            logging.info("The model did not request any tool calls, ending crawl")
-            break
-
-        # Handle tool calls
-        for tool_call in response_message.tool_calls:
-            await handle_tool_call(
-                tool_call, messages, anp_tool, crawled_documents, visited_urls
-            )
-
-            # If the maximum number of documents to crawl is reached, stop handling tool calls
-            if len(crawled_documents) >= max_documents:
-                break
-
-        # If the maximum number of documents to crawl is reached, make a final summary
-        if (
-            len(crawled_documents) >= max_documents
-            and current_iteration < max_documents
-        ):
-            logging.info(
-                f"Reached the maximum number of documents to crawl {max_documents}, making final summary"
-            )
-            continue
-
-    # Create result
-    result = {
-        "content": response_message.content,
-        "type": "text",
-        "visited_urls": [doc["url"] for doc in crawled_documents],
-        "crawled_documents": crawled_documents,
-        "task_type": task_type,
-    }
-
-    return result
-
-
-async def main():
-    """Main function"""
+            
+            result = (content_json, interfaces_list)
+            
+            # Cache the result
+            if self.cache_enabled:
+                self._cache_set(url, result)
+            
+            logger.info(f"Successfully fetched text content from: {url}, found {len(interfaces_list)} interfaces")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error fetching text content from {url}: {str(e)}")
+            
+            error_content = {
+                "agentDescriptionURI": self._agent_description_uri or self._remove_url_params(url),
+                "contentURI": self._remove_url_params(url),
+                "content": f"Error: {str(e)}"
+            }
+            return error_content, []
     
-    # Initialize enhanced logging
-    setup_enhanced_logging(level=logging.INFO)
+    async def fetch_image(self, url: str) -> Tuple[Dict, List]:
+        """
+        Fetch image information without downloading the actual file.
+        
+        Args:
+            url: URL of the image
+            
+        Returns:
+            tuple: (image_info_json, interfaces_list)
+            - image_info_json: Dictionary containing image metadata
+                {
+                    "success": bool,
+                    "source_url": str,
+                    "url": str,  # Same as source_url
+                    "description": str,
+                    "metadata": {
+                        "file_size": int,
+                        "format": str,
+                        "width": int,
+                        "height": int,
+                        "timestamp": str
+                    }
+                }
+            - interfaces_list: Usually empty list for images
+        """
+        pass
     
-    # Get settings
-    settings = get_settings()
-
-    # Get DID paths from settings or environment variables or use defaults
-    did_document_path = (
-        os.getenv("DID_DOCUMENT_PATH") or 
-        settings.did_document_path or
-        str(Path(__file__).parent.parent.parent.parent / "docs/user_public/did.json")
-    )
-    private_key_path = (
-        os.getenv("DID_PRIVATE_KEY_PATH") or 
-        settings.did_private_key_path or
-        str(Path(__file__).parent.parent.parent.parent / "docs/user_public/private_keys.json")
-    )
-
-    # Test task examples (uncomment and modify as needed)
-    # from datetime import datetime, timedelta
-    # booking_date = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
-    # task = {
-    #     "input": f"I need to book a hotel in Hangzhou: {booking_date}, for 1 day, coordinates (120.026208, 30.279212). Please handle it step by step: First, choose a good hotel yourself, then help me choose a room. Finally, tell me the details of your choice.",
-    #     "type": "hotel_booking",
-    # }
-
-    # task = {
-    #     "input": "明天到北京游玩，帮我看一下顺义区空港吉祥花园小区附近2km以内都有什么商场。",
-    #     "type": "general",
-    # }
-
-    # task = {
-    #     "input": "明天到北京国贸出差，帮我列一下步行1km以内的3星级酒店",
-    #     "type": "general",
-    # }
-
-    task = {
-        "input": "公司在阿里云云谷园区，附近有什么好吃的湘菜推荐",
-        "type": "general",
-    }
-
-    task = {
-        "input": "帮我预订一间北京望京地区今晚的三星级酒店",
-        "type": "hotel_booking",
-    }
-
-    print(f"\n=== Test Task: {task['type']} ===")
-    print(f"User Input: {task['input']}")
-
-    # Use simplified crawling logic
-    result = await anp_crawler(
-        task["input"],
-        task["type"],
-        did_document_path=did_document_path,
-        private_key_path=private_key_path,
-        max_documents=20,  # Crawl up to 20 documents
-    )
-
-    # Print result
-    print("\n=== Search Agent Response ===")
-    print(result["content"])
-    print("\n=== Visited URLs ===")
-    for url in result.get("visited_urls", []):
-        print(url)
-    print(
-        f"\n=== Crawled a total of {len(result.get('crawled_documents', []))} documents ==="
-    )
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    async def fetch_video(self, url: str) -> Tuple[Dict, List]:
+        """
+        Fetch video information without downloading the actual file.
+        
+        Args:
+            url: URL of the video
+            
+        Returns:
+            tuple: (video_info_json, interfaces_list)
+            - video_info_json: Dictionary containing video metadata
+                {
+                    "success": bool,
+                    "source_url": str,
+                    "url": str,
+                    "description": str,
+                    "thumbnail": str,  # Optional thumbnail URL
+                    "metadata": {
+                        "file_size": int,
+                        "format": str,
+                        "duration": int,  # Duration in seconds
+                        "resolution": str,  # e.g., "1920x1080"
+                        "timestamp": str
+                    }
+                }
+            - interfaces_list: Usually empty list for videos
+        """
+        pass
+    
+    async def fetch_audio(self, url: str) -> Tuple[Dict, List]:
+        """
+        Fetch audio information without downloading the actual file.
+        
+        Args:
+            url: URL of the audio file
+            
+        Returns:
+            tuple: (audio_info_json, interfaces_list)
+            - audio_info_json: Dictionary containing audio metadata
+                {
+                    "success": bool,
+                    "source_url": str,
+                    "url": str,
+                    "description": str,
+                    "metadata": {
+                        "file_size": int,
+                        "format": str,
+                        "duration": int,  # Duration in seconds
+                        "bitrate": int,  # Bitrate in kbps
+                        "timestamp": str
+                    }
+                }
+            - interfaces_list: Usually empty list for audio files
+        """
+        pass
+    
+    async def fetch_auto(self, url: str) -> Tuple[Dict, List]:
+        """
+        Automatically detect content type and call the appropriate fetch method.
+        
+        This method:
+        1. Makes a HEAD request to check Content-Type
+        2. Calls the appropriate fetch_* method based on content type
+        3. Falls back to fetch_text for unknown types
+        
+        Args:
+            url: URL to fetch
+            
+        Returns:
+            tuple: (content_json, interfaces_list) based on detected type
+        """
+        pass
+    
+    def _cache_get(self, url: str) -> Optional[Tuple[Dict, List]]:
+        """Get cached result for a URL."""
+        if not self.cache_enabled:
+            return None
+        return self._cache.get(url)
+    
+    def _cache_set(self, url: str, result: Tuple[Dict, List]):
+        """Cache result for a URL."""
+        if not self.cache_enabled:
+            return
+        self._cache[url] = result
+        logger.debug(f"Cached result for URL: {url}")
+    
+    def get_visited_urls(self) -> List[str]:
+        """Get list of all visited URLs in this session."""
+        return list(self._visited_urls)
+    
+    def clear_cache(self):
+        """Clear the session cache."""
+        self._cache.clear()
+        self._visited_urls.clear()
+        logger.info("Session cache cleared")
+    
+    def get_cache_size(self) -> int:
+        """Get the number of cached entries."""
+        return len(self._cache)
+    
+    def is_url_visited(self, url: str) -> bool:
+        """Check if a URL has been visited in this session."""
+        return url in self._visited_urls
+    
+    def _remove_url_params(self, url: str) -> str:
+        """Remove query parameters from URL."""
+        try:
+            parsed = urlparse(url)
+            # Remove query parameters and fragment
+            cleaned = urlunparse((
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                '',  # params
+                '',  # query
+                ''   # fragment
+            ))
+            return cleaned
+        except Exception as e:
+            logger.warning(f"Failed to parse URL {url}: {str(e)}")
+            return url

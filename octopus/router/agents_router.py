@@ -303,7 +303,7 @@ def register_agent(name: str, description: str = "", version: str = "1.0.0",
     return decorator
 
 
-def agent_method(description: str = "", parameters: Dict[str, Any] = None,
+def agent_interface(description: str = "", parameters: Dict[str, Any] = None,
                 returns: str = "Any", examples: List[Dict[str, Any]] = None,
                 deprecated: bool = False):
     """
