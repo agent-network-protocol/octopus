@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 from octopus.utils.log_base import setup_enhanced_logging
 from octopus.config.settings import get_settings
 from octopus.master_agent import MasterAgent
-from octopus.agents.message_agent.message_agent import MessageAgent
+from octopus.agents.message.message_agent import MessageAgent
 from octopus.api.chat_router import router as chat_router, set_agents
 from octopus.api.ad_router import router as ad_router
 from octopus.anp_sdk.anp_auth.auth_middleware import auth_middleware

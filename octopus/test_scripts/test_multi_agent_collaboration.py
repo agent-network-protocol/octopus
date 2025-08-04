@@ -16,7 +16,7 @@ sys.path.insert(0, '.')
 from octopus.utils.log_base import setup_enhanced_logging
 from octopus.router.agents_router import router
 from octopus.master_agent import MasterAgent
-from octopus.agents.message_agent.message_agent import MessageAgent
+from octopus.agents.message.message_agent import MessageAgent
 from octopus.config.settings import get_settings
 
 

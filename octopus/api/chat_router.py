@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from octopus.master_agent import MasterAgent
-from octopus.agents.message_agent.message_agent import MessageAgent
+from octopus.agents.message.message_agent import MessageAgent
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

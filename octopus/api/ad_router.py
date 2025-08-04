@@ -4,8 +4,9 @@ Provides agent description information and JSON-RPC interfaces.
 """
 
 import logging
+from datetime import datetime
 from typing import Dict, Any, List
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -21,8 +22,8 @@ settings = get_settings()
 
 # Default domain for agent descriptions
 AGENT_DESCRIPTION_JSON_DOMAIN = f"{settings.host}:{settings.port}"
-DID_DOMAIN = "octopus.ai"
-DID_PATH = "agents"
+DID_DOMAIN = "didhost.cc"
+DID_PATH = "test:public"
 
 class JSONRPCRequest(BaseModel):
     """JSON-RPC request model."""
@@ -40,104 +41,13 @@ class JSONRPCResponse(BaseModel):
     id: str
 
 
-class AgentSchemaGenerator:
-    """Generate JSON-RPC schema for agents."""
-    
-    @staticmethod
-    def generate_agent_interfaces(agent_name: str, agent_registration) -> List[Dict[str, Any]]:
-        """Generate JSON-RPC interfaces for an agent."""
-        interfaces = []
-        
-        if not agent_registration or not agent_registration.methods:
-            return interfaces
-        
-        for method_name, method_info in agent_registration.methods.items():
-            # Create JSON-RPC interface definition
-            interface = {
-                "@type": "ad:StructuredInterface",
-                "protocol": {
-                    "name": "JSON-RPC",
-                    "version": "2.0",
-                    "transport": "HTTP",
-                    "HTTP Method": "POST"
-                },
-                "schema": {
-                    "method": f"{agent_name}.{method_name}",
-                    "description": method_info.description or method_info.docstring,
-                    "params": AgentSchemaGenerator._convert_params_to_jsonrpc_schema(method_info.parameters),
-                    "returns": method_info.returns,
-                    "annotations": {
-                        "agent": agent_name,
-                        "method": method_name,
-                        "deprecated": method_info.deprecated
-                    }
-                },
-                "url": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}/agents/jsonrpc"
-            }
-            interfaces.append(interface)
-        
-        return interfaces
-    
-    @staticmethod
-    def _convert_params_to_jsonrpc_schema(parameters: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-        """Convert agent method parameters to JSON-RPC schema."""
-        if not parameters:
-            return {"type": "object", "properties": {}, "required": []}
-        
-        properties = {}
-        required = []
-        
-        for param_name, param_info in parameters.items():
-            # Extract parameter type
-            param_type = param_info.get("type", "string")
-            param_schema = {
-                "type": AgentSchemaGenerator._python_type_to_json_type(param_type),
-                "description": param_info.get("description", f"Parameter {param_name}")
-            }
-            
-            properties[param_name] = param_schema
-            
-            # Check if parameter is required
-            if param_info.get("required", True):
-                required.append(param_name)
-        
-        return {
-            "type": "object",
-            "properties": properties,
-            "required": required,
-            "additionalProperties": False
-        }
-    
-    @staticmethod
-    def _python_type_to_json_type(python_type: str) -> str:
-        """Convert Python type to JSON schema type."""
-        type_mapping = {
-            "str": "string",
-            "int": "integer", 
-            "float": "number",
-            "bool": "boolean",
-            "dict": "object",
-            "list": "array",
-            "Dict": "object",
-            "List": "array",
-            "Any": "string"
-        }
-        
-        # Handle complex types
-        if "[" in python_type:
-            base_type = python_type.split("[")[0].strip()
-            return type_mapping.get(base_type, "string")
-        
-        return type_mapping.get(python_type, "string")
-
-
 @router.get("/ad.json")
 async def get_agents_description():
     """
-    Provide comprehensive agent description information with JSON-RPC interfaces.
+    Provide agent description information in ANP format with OpenRPC interfaces.
     
     Returns:
-        Agent description in JSON-LD format with JSON-RPC integration
+        Agent description in ANP format with embedded OpenRPC interface
     """
     try:
         logger.info("Generating agent description (ad.json)")
@@ -146,86 +56,49 @@ async def get_agents_description():
         agents_list = agent_router.list_agents()
         logger.info(f"Found {len(agents_list)} registered agents")
         
-        # Find master agent
-        master_agent = None
-        sub_agents = []
-        
-        for agent in agents_list:
-            if agent["name"] == "master_agent":
-                master_agent = agent
-            else:
-                sub_agents.append(agent)
-        
-        if not master_agent:
-            logger.warning("Master agent not found, using first agent as primary")
-            master_agent = agents_list[0] if agents_list else None
-        
-        if not master_agent:
+        if not agents_list:
             raise HTTPException(status_code=500, detail="No agents registered")
         
-        # Create main agent description based on master agent
+        # Generate OpenRPC interface for all agents
+        openrpc_interface = agent_router.generate_openrpc_interface(
+            base_url=f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}",
+            app_version=settings.app_version
+        )
+        
+        # Create agent description in ANP format
         agent_description = {
-            "@context": {
-                "@vocab": "https://schema.org/",
-                "did": "https://w3id.org/did#", 
-                "ad": "https://agent-network-protocol.com/ad#",
-            },
-            "@type": "ad:AgentDescription",
-            "@id": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}/ad.json",
+            "protocolType": "ANP",
+            "protocolVersion": "1.0.0",
+            "type": "AgentDescription",
+            "url": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}/ad.json",
             "name": "Octopus Multi-Agent System",
             "did": f"did:wba:{DID_DOMAIN}:{DID_PATH}",
-            "description": "A multi-agent system providing intelligent task delegation and natural language processing. The master agent coordinates with specialized sub-agents to handle various tasks including text processing, data analysis, and more.",
-            "version": settings.app_version,
             "owner": {
-                "@type": "Organization",
-                "name": f"{AGENT_DESCRIPTION_JSON_DOMAIN}",
-                "@id": f"https://{AGENT_DESCRIPTION_JSON_DOMAIN}",
+                "type": "Organization",
+                "name": "Octopus AI",
+                "url": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}"
             },
-            "ad:securityDefinitions": {
+            "description": "A multi-agent system providing intelligent task delegation and natural language processing. The master agent coordinates with specialized sub-agents to handle various tasks including text processing, data analysis, and more.",
+            "created": datetime.now().isoformat() + "Z",
+            "securityDefinitions": {
                 "didwba_sc": {
                     "scheme": "didwba",
-                    "in": "header", 
-                    "name": "Authorization",
+                    "in": "header",
+                    "name": "Authorization"
                 }
             },
-            "ad:security": "didwba_sc",
-            "ad:interfaces": [],
-            "ad:resources": [],
-            "ad:agents": {
-                "master": master_agent,
-                "sub_agents": sub_agents
-            }
+            "security": "didwba_sc",
+            "interfaces": [
+                {
+                    "type": "StructuredInterface",
+                    "protocol": "openrpc",
+                    "description": "OpenRPC interface for accessing Octopus multi-agent services.",
+                    "content": openrpc_interface
+                }
+            ]
         }
         
-        # Generate interfaces for master agent
-        master_registration = agent_router.get_agent("master_agent")
-        if master_registration:
-            master_interfaces = AgentSchemaGenerator.generate_agent_interfaces("master_agent", master_registration)
-            agent_description["ad:interfaces"].extend(master_interfaces)
-            logger.info(f"Added {len(master_interfaces)} interfaces for master agent")
-        
-        # Generate interfaces for sub-agents
-        for sub_agent in sub_agents:
-            agent_name = sub_agent["name"]
-            agent_registration = agent_router.get_agent(agent_name)
-            if agent_registration:
-                agent_interfaces = AgentSchemaGenerator.generate_agent_interfaces(agent_name, agent_registration)
-                agent_description["ad:interfaces"].extend(agent_interfaces)
-                logger.info(f"Added {len(agent_interfaces)} interfaces for agent {agent_name}")
-        
-        # Add resources (agent capabilities)
-        for agent in agents_list:
-            resource_item = {
-                "@type": "ad:Resource",
-                "uri": f"urn:agent:{agent['name']}",
-                "name": f"{agent['name']} capabilities",
-                "description": agent['description'],
-                "mimeType": "application/json",
-                "url": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}/agents/{agent['name']}/info"
-            }
-            agent_description["ad:resources"].append(resource_item)
-        
-        logger.info(f"Generated agent description with {len(agent_description['ad:interfaces'])} interfaces and {len(agent_description['ad:resources'])} resources")
+        logger.info(f"Generated agent description with {len(openrpc_interface['methods'])} OpenRPC methods")
         
         return JSONResponse(
             content=agent_description,
@@ -257,44 +130,23 @@ async def handle_jsonrpc_call(request: JSONRPCRequest):
         JSON-RPC response
     """
     try:
-        logger.info(f"Handling JSON-RPC call: {request.method}")
+        # Delegate to agent router for handling
+        response_dict = agent_router.handle_jsonrpc_call(
+            method=request.method,
+            params=request.params,
+            request_id=request.id
+        )
         
-        # Parse method name (format: agent_name.method_name)
-        if "." not in request.method:
+        # Convert response dict to JSONRPCResponse
+        if "error" in response_dict:
             return JSONRPCResponse(
-                id=request.id,
-                error={
-                    "code": -32601,
-                    "message": "Method not found",
-                    "data": f"Invalid method format. Expected 'agent_name.method_name', got '{request.method}'"
-                }
+                id=response_dict["id"],
+                error=response_dict["error"]
             )
-        
-        agent_name, method_name = request.method.split(".", 1)
-        
-        # Execute agent method
-        try:
-            result = agent_router.execute_agent_method(agent_name, method_name, request.params)
-            return JSONRPCResponse(id=request.id, result=result)
-            
-        except ValueError as e:
+        else:
             return JSONRPCResponse(
-                id=request.id,
-                error={
-                    "code": -32601,
-                    "message": "Method not found",
-                    "data": str(e)
-                }
-            )
-        except Exception as e:
-            logger.error(f"Error executing {request.method}: {str(e)}")
-            return JSONRPCResponse(
-                id=request.id,
-                error={
-                    "code": -32603,
-                    "message": "Internal error",
-                    "data": str(e)
-                }
+                id=response_dict["id"],
+                result=response_dict["result"]
             )
             
     except Exception as e:

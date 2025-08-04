@@ -36,7 +36,7 @@ class Message:
 
 
 @register_agent(
-    name="message_agent",
+    name="message",
     description="Agent for handling message sending and receiving operations",
     version="1.0.0",
     tags=["message", "communication", "did"]
@@ -73,7 +73,8 @@ class MessageAgent(BaseAgent):
             "recipient_did": {"description": "DID (Decentralized Identifier) of the message recipient"},
             "metadata": {"description": "Additional metadata for the message"}
         },
-        returns="dict"
+        returns="dict",
+        access_level="both"  # Available both internally and externally
     )
     def send_message(self, message_content: str, recipient_did: str, 
                     metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -150,7 +151,7 @@ class MessageAgent(BaseAgent):
             "metadata": {"description": "Additional metadata for the message"}
         },
         returns="dict",
-        access_level="both"
+        access_level="internal"  # Only for internal use
     )
     def receive_message(self, message_content: str, sender_did: str,
                        metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -223,7 +224,8 @@ class MessageAgent(BaseAgent):
             "other_did": {"description": "DID of the other party in the conversation"},
             "limit": {"description": "Maximum number of messages to return"}
         },
-        returns="dict"
+        returns="dict",
+        access_level="external"  # Only available externally
     )
     def get_message_history(self, other_did: str, limit: int = 50) -> Dict[str, Any]:
         """
@@ -277,7 +279,8 @@ class MessageAgent(BaseAgent):
     @agent_interface(
         description="Get message statistics",
         parameters={},
-        returns="dict"
+        returns="dict",
+        access_level="both"  # Available both internally and externally
     )
     def get_statistics(self) -> Dict[str, Any]:
         """
@@ -312,7 +315,8 @@ class MessageAgent(BaseAgent):
         parameters={
             "conversation_did": {"description": "DID to clear conversation with (optional, clears all if not specified)"}
         },
-        returns="dict"
+        returns="dict",
+        access_level="internal"  # Only for internal use
     )
     def clear_history(self, conversation_did: Optional[str] = None) -> Dict[str, Any]:
         """

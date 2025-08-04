@@ -5,6 +5,7 @@ Agent router for managing and discovering agents with decorator-based registrati
 import inspect
 import logging
 import re
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Union, Callable, get_type_hints, Type
 from functools import wraps
 import json
@@ -24,6 +25,7 @@ class MethodInfo:
     docstring: str = ""
     examples: List[Dict[str, Any]] = field(default_factory=list)
     deprecated: bool = False
+    access_level: str = "internal"  # "internal", "external", "both"
 
 
 @dataclass
@@ -209,6 +211,49 @@ class AgentRouter:
         # Extract base type from complex types
         base_type = python_type.split("[")[0].strip("<>").split(".")[-1]
         return type_mapping.get(base_type, "string")
+    
+    # ===== RPC Services Integration =====
+    
+    def _get_openrpc_generator(self):
+        """Get OpenRPC generator instance (lazy loading)."""
+        if not hasattr(self, '_openrpc_generator'):
+            from .rpc_services import OpenRPCGenerator
+            self._openrpc_generator = OpenRPCGenerator(self)
+        return self._openrpc_generator
+    
+    def _get_jsonrpc_handler(self):
+        """Get JSON-RPC handler instance (lazy loading)."""
+        if not hasattr(self, '_jsonrpc_handler'):
+            from .rpc_services import JSONRPCHandler
+            self._jsonrpc_handler = JSONRPCHandler(self)
+        return self._jsonrpc_handler
+    
+    def generate_openrpc_interface(self, base_url: str, app_version: str = "1.0.0") -> Dict[str, Any]:
+        """
+        Generate OpenRPC interface specification.
+        
+        Args:
+            base_url: Base URL for the API server
+            app_version: Application version
+            
+        Returns:
+            OpenRPC specification dictionary
+        """
+        return self._get_openrpc_generator().generate_interface(base_url, app_version)
+    
+    def handle_jsonrpc_call(self, method: str, params: Dict[str, Any], request_id: str) -> Dict[str, Any]:
+        """
+        Handle JSON-RPC method call.
+        
+        Args:
+            method: Method name in format "agent_name.method_name"
+            params: Method parameters
+            request_id: JSON-RPC request ID
+            
+        Returns:
+            JSON-RPC response dictionary
+        """
+        return self._get_jsonrpc_handler().handle_call(method, params, request_id)
 
 
 # Global router instance
@@ -286,7 +331,8 @@ def register_agent(name: str, description: str = "", version: str = "1.0.0",
                         returns=method_meta.get("returns", str(signature.return_annotation)),
                         docstring=inspect.getdoc(method_obj) or "",
                         examples=method_meta.get("examples", []),
-                        deprecated=method_meta.get("deprecated", False)
+                        deprecated=method_meta.get("deprecated", False),
+                        access_level=method_meta.get("access_level", "internal")
                     )
                     
                     agent_metadata["methods"][method_name] = method_info
@@ -305,7 +351,7 @@ def register_agent(name: str, description: str = "", version: str = "1.0.0",
 
 def agent_interface(description: str = "", parameters: Dict[str, Any] = None,
                 returns: str = "Any", examples: List[Dict[str, Any]] = None,
-                deprecated: bool = False):
+                deprecated: bool = False, access_level: str = "internal"):
     """
     Decorator for marking and documenting agent methods.
     
@@ -315,6 +361,7 @@ def agent_interface(description: str = "", parameters: Dict[str, Any] = None,
         returns: Return type description
         examples: Usage examples
         deprecated: Whether the method is deprecated
+        access_level: Access level ("internal", "external", "both"). Default is "internal"
     """
     def decorator(func):
         # Attach metadata to function
@@ -323,7 +370,8 @@ def agent_interface(description: str = "", parameters: Dict[str, Any] = None,
             "parameters": parameters or {},
             "returns": returns,
             "examples": examples or [],
-            "deprecated": deprecated
+            "deprecated": deprecated,
+            "access_level": access_level
         }
         
         @wraps(func)
