@@ -10,7 +10,7 @@ from pathlib import Path
 
 from octopus.utils.log_base import setup_enhanced_logging
 from octopus.config.settings import get_settings
-from octopus.anp_sdk.anp_crawler.anp_crawler import anp_crawler
+from octopus.anp_sdk.anp_crawler.anp_crawler import ANPCrawler
 
 
 class ANPCrawlerTest:
@@ -108,14 +108,29 @@ class ANPCrawlerTest:
             # Use ANP crawler to test local endpoint access
             test_task = "Test accessing the local agent description file to verify server connectivity and authentication"
             
-            result = await anp_crawler(
-                user_input=test_task,
-                task_type="test",
+            # TODO: Update to use new ANPCrawler class interface
+            # For now, create a basic crawler instance and test connectivity
+            crawler = ANPCrawler(
                 did_document_path=did_document_path,
                 private_key_path=private_key_path,
-                max_documents=3,  # Limit to 3 documents for testing
-                initial_url=local_url
+                cache_enabled=True
             )
+            
+            # Test basic connectivity using fetch_auto method
+            try:
+                result_data, interfaces = await crawler.fetch_auto(local_url)
+                result = {
+                    "status": "success",
+                    "data": result_data,
+                    "interfaces": interfaces,
+                    "task": test_task
+                }
+            except Exception as e:
+                result = {
+                    "status": "error",
+                    "error": str(e),
+                    "task": test_task
+                }
             
             # Check ANP crawler results
             if result.get("type") == "error":
