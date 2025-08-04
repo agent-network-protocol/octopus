@@ -16,7 +16,7 @@ class ANPInterface:
     Interface converter for transforming JSON-RPC and OpenRPC interfaces to OpenAI Tools format.
     
     Supported conversions:
-    - JSON-RPC 2.0 → OpenAI Tools
+    - openrpc → OpenAI Tools
     - OpenRPC → OpenAI Tools
     """
     

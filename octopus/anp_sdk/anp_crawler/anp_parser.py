@@ -69,14 +69,28 @@ class ANPDocumentParser:
         # Extract interfaces from the interfaces field
         if "interfaces" in data:
             for interface_def in data["interfaces"]:
-                interfaces.append({
-                    "type": interface_def.get("type", "unknown"),
-                    "protocol": interface_def.get("protocol", "unknown"),
-                    "url": interface_def.get("url", ""),
-                    "description": interface_def.get("description", ""),
-                    "version": interface_def.get("version", ""),
-                    "source": "agent_description"
-                })
+                # Check if this is a StructuredInterface with OpenRPC content
+                if (interface_def.get("type") == "StructuredInterface" and 
+                    interface_def.get("protocol") == "openrpc" and 
+                    "content" in interface_def):
+                    
+                    # Extract OpenRPC interfaces from embedded content
+                    content = interface_def["content"]
+                    if isinstance(content, dict) and self._is_openrpc_interface(content):
+                        embedded_interfaces = self._extract_openrpc_interfaces(content)
+                        interfaces.extend(embedded_interfaces)
+                    else:
+                        logger.warning(f"Invalid OpenRPC content in StructuredInterface: {interface_def.get('description', 'unknown')}")
+                else:
+                    # Regular interface definition (URL-based)
+                    interfaces.append({
+                        "type": interface_def.get("type", "unknown"),
+                        "protocol": interface_def.get("protocol", "unknown"),
+                        "url": interface_def.get("url", ""),
+                        "description": interface_def.get("description", ""),
+                        "version": interface_def.get("version", ""),
+                        "source": "agent_description"
+                    })
         
         return interfaces
     
@@ -133,7 +147,7 @@ class ANPDocumentParser:
             if isinstance(method, dict):
                 interfaces.append({
                     "type": "openrpc_method",
-                    "protocol": "JSON-RPC 2.0",
+                    "protocol": "openrpc",
                     "method_name": method.get("name", ""),
                     "summary": method.get("summary", ""),
                     "description": method.get("description", ""),

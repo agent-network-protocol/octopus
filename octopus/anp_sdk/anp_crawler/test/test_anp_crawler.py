@@ -43,6 +43,10 @@ class TestANPCrawler(unittest.IsolatedAsyncioTestCase):
         with open(self.test_data_dir / "test_data_openrpc.json", "r") as f:
             self.openrpc_data = json.load(f)
         
+        # Load embedded OpenRPC test data
+        with open(self.test_data_dir / "test_data_embedded_openrpc.json", "r") as f:
+            self.embedded_openrpc_data = json.load(f)
+        
         # Mock DID paths for testing
         self.mock_did_document_path = "test/did.json"
         self.mock_private_key_path = "test/private_key.json"
@@ -50,6 +54,7 @@ class TestANPCrawler(unittest.IsolatedAsyncioTestCase):
         # Test URLs
         self.test_agent_url = "https://grand-hotel.com/agents/hotel-assistant"
         self.test_openrpc_url = "https://grand-hotel.com/api/services-interface.json"
+        self.test_embedded_openrpc_url = "https://hotel-services.com/agents/booking-assistant"
         self.test_image_url = "https://grand-hotel.com/media/hotel-image.jpg"
         self.test_video_url = "https://grand-hotel.com/media/hotel-tour-video.mp4"
         self.test_audio_url = "https://grand-hotel.com/media/hotel-audio.mp3"
@@ -201,6 +206,68 @@ class TestANPCrawler(unittest.IsolatedAsyncioTestCase):
         
         # At least one $ref should have been resolved
         self.assertTrue(found_ref_resolution, "$ref references should be resolved")
+    
+    @patch('octopus.anp_sdk.anp_crawler.anp_client.DIDWbaAuthHeader')
+    async def test_fetch_text_embedded_openrpc(self, mock_auth_header):
+        """Test fetching Agent Description with embedded OpenRPC content."""
+        mock_auth_header.return_value = MagicMock()
+        
+        # Create crawler instance
+        crawler = ANPCrawler(
+            did_document_path=self.mock_did_document_path,
+            private_key_path=self.mock_private_key_path
+        )
+        
+        # Mock HTTP response for Agent Description with embedded OpenRPC
+        mock_response = {
+            "success": True,
+            "text": json.dumps(self.embedded_openrpc_data),
+            "content_type": "application/json",
+            "status_code": 200,
+            "url": self.test_embedded_openrpc_url
+        }
+        
+        crawler._client.fetch_url = AsyncMock(return_value=mock_response)
+        
+        # Execute fetch_text
+        content_json, interfaces_list = await crawler.fetch_text(self.test_embedded_openrpc_url)
+        
+        # Verify content structure
+        self.assertEqual(content_json["contentURI"], self.test_embedded_openrpc_url)
+        self.assertEqual(content_json["content"], json.dumps(self.embedded_openrpc_data))
+        
+        # Verify embedded OpenRPC interfaces extraction
+        self.assertIsInstance(interfaces_list, list)
+        self.assertGreater(len(interfaces_list), 0)
+        
+        # Should find checkAvailability and createBooking methods
+        method_names = [interface["function"]["name"] for interface in interfaces_list]
+        self.assertIn("checkAvailability", method_names)
+        self.assertIn("createBooking", method_names)
+        
+        # Verify $ref resolution in embedded OpenRPC
+        booking_interface = None
+        for interface in interfaces_list:
+            if interface["function"]["name"] == "createBooking":
+                booking_interface = interface
+                break
+        
+        self.assertIsNotNone(booking_interface, "createBooking interface should be found")
+        
+        # Check that $ref references are resolved
+        params = booking_interface["function"]["parameters"]
+        properties = params.get("properties", {})
+        
+        if "bookingDetails" in properties:
+            booking_details = properties["bookingDetails"]
+            bd_properties = booking_details.get("properties", {})
+            
+            # Check if guestInfo has been resolved from $ref
+            if "guestInfo" in bd_properties:
+                guest_info = bd_properties["guestInfo"]
+                self.assertIn("properties", guest_info, "$ref for guestInfo should be resolved")
+                self.assertIn("firstName", guest_info["properties"])
+                self.assertIn("email", guest_info["properties"])
     
     @patch('octopus.anp_sdk.anp_crawler.anp_client.DIDWbaAuthHeader')
     async def test_fetch_text_error_handling(self, mock_auth_header):
@@ -393,6 +460,8 @@ class TestANPDocumentParser(unittest.TestCase):
             self.agent_description_data = json.load(f)
         with open(test_data_dir / "test_data_openrpc.json", "r") as f:
             self.openrpc_data = json.load(f)
+        with open(test_data_dir / "test_data_embedded_openrpc.json", "r") as f:
+            self.embedded_openrpc_data = json.load(f)
     
     def test_parse_agent_description(self):
         """Test parsing Agent Description document."""
@@ -422,11 +491,34 @@ class TestANPDocumentParser(unittest.TestCase):
         # Check OpenRPC interface structure
         for interface in interfaces:
             self.assertEqual(interface["type"], "openrpc_method")
-            self.assertEqual(interface["protocol"], "JSON-RPC 2.0")
+            self.assertEqual(interface["protocol"], "openrpc")
             self.assertIn("method_name", interface)
             self.assertIn("params", interface)
             self.assertIn("components", interface)
             self.assertEqual(interface["source"], "openrpc_interface")
+    
+    def test_parse_embedded_openrpc_document(self):
+        """Test parsing Agent Description with embedded OpenRPC content."""
+        content = json.dumps(self.embedded_openrpc_data)
+        result = self.parser.parse_document(content, "application/json", "test_url")
+        
+        self.assertIn("interfaces", result)
+        interfaces = result["interfaces"]
+        self.assertGreater(len(interfaces), 0)
+        
+        # Should find methods from embedded OpenRPC content
+        method_names = [interface["method_name"] for interface in interfaces if interface["type"] == "openrpc_method"]
+        self.assertIn("checkAvailability", method_names)
+        self.assertIn("createBooking", method_names)
+        
+        # Check embedded OpenRPC interface structure
+        for interface in interfaces:
+            if interface["type"] == "openrpc_method":
+                self.assertEqual(interface["protocol"], "openrpc")
+                self.assertIn("method_name", interface)
+                self.assertIn("params", interface)
+                self.assertIn("components", interface)
+                self.assertEqual(interface["source"], "openrpc_interface")
     
     def test_parse_invalid_json(self):
         """Test parsing invalid JSON content."""

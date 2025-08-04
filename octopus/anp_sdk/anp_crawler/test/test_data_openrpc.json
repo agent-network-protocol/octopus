@@ -3,7 +3,7 @@
   "info": {
     "title": "Grand Hotel Services API",
     "version": "1.0.0",
-    "description": "JSON-RPC 2.0 API for hotel services including room management, booking, and guest services",
+    "description": "openrpc API for hotel services including room management, booking, and guest services",
     "x-anp-protocol-type": "ANP",
     "x-anp-protocol-version": "1.0.0"
   },

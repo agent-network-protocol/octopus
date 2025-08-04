@@ -60,9 +60,9 @@
     },
     {
       "type": "StructuredInterface",
-      "protocol": "JSON-RPC 2.0",
+      "protocol": "openrpc",
       "url": "https://grand-hotel.com/api/services-interface.json",
-      "description": "JSON-RPC 2.0 interface for accessing hotel services and amenities."
+      "description": "openrpc interface for accessing hotel services and amenities."
     },
     {
       "type": "StructuredInterface",

@@ -52,9 +52,9 @@ ANP Crawler 重构方案
     },
     {
       "type": "StructuredInterface",
-      "protocol": "JSON-RPC 2.0",
+      "protocol": "openrpc",
       "url": "https://grand-hotel.com/api/services-interface.json",
-      "description": "JSON-RPC 2.0 interface for accessing hotel services and amenities."
+      "description": "openrpc interface for accessing hotel services and amenities."
     }
   ],
   "proof": {
@@ -212,7 +212,7 @@ ANPInterface (接口转换类) - anp_interface.py
 ### 接口转换规范
 
 当前版本专注于JSON-RPC格式的接口转换：
-- **JSON-RPC 2.0 / OpenRPC** → OpenAI Tools
+- **openrpc / OpenRPC** → OpenAI Tools
 
 ### 关键设计原则
 
