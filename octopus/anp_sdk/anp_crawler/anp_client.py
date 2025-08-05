@@ -5,7 +5,6 @@ This module provides HTTP client functionality with DID authentication support.
 It reuses the authentication capabilities from the existing ANPTool.
 """
 
-import json
 import logging
 from typing import Dict, Any, Optional
 import aiohttp
