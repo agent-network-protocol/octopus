@@ -2,7 +2,6 @@
 Message Agent - Agent for handling message sending and receiving operations.
 """
 
-import json
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -74,7 +73,7 @@ class MessageAgent(BaseAgent):
             "metadata": {"description": "Additional metadata for the message"}
         },
         returns="dict",
-        access_level="both"  # Available both internally and externally
+        access_level="internal"  # Available both internally and externally
     )
     def send_message(self, message_content: str, recipient_did: str, 
                     metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -151,7 +150,7 @@ class MessageAgent(BaseAgent):
             "metadata": {"description": "Additional metadata for the message"}
         },
         returns="dict",
-        access_level="internal"  # Only for internal use
+        access_level="external"  # Made external for end-to-end testing
     )
     def receive_message(self, message_content: str, sender_did: str,
                        metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -219,68 +218,10 @@ class MessageAgent(BaseAgent):
             }
     
     @agent_interface(
-        description="Get message history for a specific conversation",
-        parameters={
-            "other_did": {"description": "DID of the other party in the conversation"},
-            "limit": {"description": "Maximum number of messages to return"}
-        },
-        returns="dict",
-        access_level="external"  # Only available externally
-    )
-    def get_message_history(self, other_did: str, limit: int = 50) -> Dict[str, Any]:
-        """
-        Get message history for a specific conversation.
-        
-        Args:
-            other_did: DID of the other party in the conversation
-            limit: Maximum number of messages to return
-            
-        Returns:
-            Dictionary containing conversation history
-        """
-        try:
-            # Try both conversation key formats
-            conversation_key_1 = f"{self.agent_id}:{other_did}"
-            conversation_key_2 = f"{other_did}:{self.agent_id}"
-            
-            messages = []
-            if conversation_key_1 in self.message_history:
-                messages.extend(self.message_history[conversation_key_1])
-            if conversation_key_2 in self.message_history:
-                messages.extend(self.message_history[conversation_key_2])
-            
-            # Sort messages by timestamp
-            messages.sort(key=lambda x: x.timestamp)
-            
-            # Apply limit
-            if limit > 0:
-                messages = messages[-limit:]
-            
-            # Convert to dict format
-            message_dicts = [msg.to_dict() for msg in messages]
-            
-            return {
-                "success": True,
-                "conversation_with": other_did,
-                "message_count": len(message_dicts),
-                "messages": message_dicts
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Failed to get message history: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "conversation_with": other_did,
-                "message_count": 0,
-                "messages": []
-            }
-    
-    @agent_interface(
         description="Get message statistics",
         parameters={},
         returns="dict",
-        access_level="both"  # Available both internally and externally
+        access_level="internal"  # Available both internally and externally
     )
     def get_statistics(self) -> Dict[str, Any]:
         """
@@ -310,71 +251,3 @@ class MessageAgent(BaseAgent):
                 "statistics": {}
             }
     
-    @agent_interface(
-        description="Clear message history",
-        parameters={
-            "conversation_did": {"description": "DID to clear conversation with (optional, clears all if not specified)"}
-        },
-        returns="dict",
-        access_level="internal"  # Only for internal use
-    )
-    def clear_history(self, conversation_did: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Clear message history.
-        
-        Args:
-            conversation_did: DID to clear conversation with (optional)
-            
-        Returns:
-            Dictionary containing clear operation status
-        """
-        try:
-            if conversation_did:
-                # Clear specific conversation
-                conversation_key_1 = f"{self.agent_id}:{conversation_did}"
-                conversation_key_2 = f"{conversation_did}:{self.agent_id}"
-                
-                cleared_count = 0
-                if conversation_key_1 in self.message_history:
-                    cleared_count += len(self.message_history[conversation_key_1])
-                    del self.message_history[conversation_key_1]
-                if conversation_key_2 in self.message_history:
-                    cleared_count += len(self.message_history[conversation_key_2])
-                    del self.message_history[conversation_key_2]
-                
-                self.logger.info(f"Cleared conversation history with {conversation_did}")
-                
-                return {
-                    "success": True,
-                    "cleared_conversation": conversation_did,
-                    "messages_cleared": cleared_count
-                }
-            else:
-                # Clear all history
-                total_messages = sum(len(msgs) for msgs in self.message_history.values())
-                self.message_history.clear()
-                self.sent_messages.clear()
-                self.received_messages.clear()
-                
-                # Reset statistics
-                self.stats = {
-                    "total_sent": 0,
-                    "total_received": 0,
-                    "successful_deliveries": 0,
-                    "failed_deliveries": 0
-                }
-                
-                self.logger.info("Cleared all message history")
-                
-                return {
-                    "success": True,
-                    "cleared_all": True,
-                    "messages_cleared": total_messages
-                }
-                
-        except Exception as e:
-            self.logger.error(f"Failed to clear history: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e)
-            } 

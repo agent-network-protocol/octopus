@@ -155,7 +155,8 @@ class MasterAgent(BaseAgent):
             "request": {"type": "string", "description": "Natural language request or task"},
             "request_id": {"type": "string", "description": "Unique identifier for this request"}
         },
-        returns="string"
+        returns="string",
+        access_level="external"
     )
     def process_natural_language(self, request: str, request_id: str) -> str:
         """
