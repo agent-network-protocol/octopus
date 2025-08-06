@@ -93,8 +93,8 @@ class ANPInterface:
                 else:
                     processed_arguments[key] = value
             
-            logger.info(f"Original arguments: {arguments}")
-            logger.info(f"Processed arguments: {processed_arguments}")
+            logger.info(f"🔵 [ANP INTERFACE] Original arguments: {arguments}")
+            logger.info(f"🔵 [ANP INTERFACE] Processed arguments: {processed_arguments}")
             
             # Build JSON-RPC request
             rpc_request = {
@@ -104,8 +104,8 @@ class ANPInterface:
                 "params": processed_arguments
             }
             
-            logger.info(f"Executing tool call: {self.tool_name} -> {self.method_name} at {server_url}")
-            logger.info(f"JSON-RPC request payload: {json.dumps(rpc_request, ensure_ascii=False, indent=2)}")
+            logger.info(f"🔵 [ANP INTERFACE] Executing tool call: {self.tool_name} -> {self.method_name} at {server_url}")
+            logger.info(f"🔵 [ANP INTERFACE] JSON-RPC request payload: {json.dumps(rpc_request, ensure_ascii=False, indent=2)}")
             
             # Send HTTP POST request
             response = await self.anp_client.fetch_url(
@@ -116,7 +116,7 @@ class ANPInterface:
             )
             
             if not response.get("success", False):
-                logger.error(f"HTTP request failed: {response}")
+                logger.error(f"❌ [ANP INTERFACE] HTTP request failed: {response}")
                 return {
                     "success": False,
                     "error": f"HTTP request failed: {response.get('error', 'Unknown error')}",
@@ -128,8 +128,8 @@ class ANPInterface:
             # Parse JSON-RPC response
             try:
                 response_text = response.get("text", "")
-                logger.info(f"HTTP response status: {response.get('status_code')}")
-                logger.info(f"HTTP response text: {response_text}")
+                logger.info(f"🟢 [ANP INTERFACE] HTTP response status: {response.get('status_code')}")
+                logger.info(f"🟢 [ANP INTERFACE] HTTP response text: {response_text}")
                 
                 if not response_text:
                     logger.error("Empty response text from server")

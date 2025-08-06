@@ -12,14 +12,16 @@ from .token_auth import handle_bearer_auth
 
 # Define exempt paths that don't require authentication
 EXEMPT_PATHS = [
+    "/favicon.ico",
+    "/v1/status",
     "/health",
     "/docs",
     "/redoc",
     "/openapi.json",
     "/wba/user/",  # Allow access to DID documents
     "/",  # Allow access to root endpoint
-    "/ad.json",  # Allow access to agent description
     "/v1/chat",  
+    "/static/",  # Allow access to all paths under /static/
 ]  # "/wba/test" path removed from exempt list, now requires authentication
 
 

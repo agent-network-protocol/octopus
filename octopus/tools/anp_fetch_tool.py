@@ -1,5 +1,5 @@
 '''
-暂时不用这个文件，待定
+This file is temporarily not in use, pending
 '''
 
 

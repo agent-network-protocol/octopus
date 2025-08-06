@@ -51,11 +51,11 @@ async def get_agents_description():
         Agent description in ANP format with embedded OpenRPC interface
     """
     try:
-        logger.info("Generating agent description (ad.json)")
+        logger.info("🟡 [AD.JSON] Starting agent description generation...")
         
         # Get all registered agents
         agents_list = agent_router.list_agents()
-        logger.info(f"Found {len(agents_list)} registered agents")
+        logger.info(f"🟡 [AD.JSON] Found {len(agents_list)} registered agents: {agents_list}")
         
         if not agents_list:
             raise HTTPException(status_code=500, detail="No agents registered")
@@ -99,15 +99,19 @@ async def get_agents_description():
             ]
         }
         
-        logger.info(f"Generated agent description with {len(openrpc_interface['methods'])} OpenRPC methods")
+        logger.info(f"🟡 [AD.JSON] Generated OpenRPC interface with {len(openrpc_interface['methods'])} methods")
         
+        # Log the full agent description for debugging
+        logger.info(f"🟡 [AD.JSON] Generated agent description: {json.dumps(agent_description, ensure_ascii=False, indent=2)}")
+        
+        logger.info("🟡 [AD.JSON] Agent description generated successfully")
         return JSONResponse(
             content=agent_description,
             media_type="application/json; charset=utf-8"
         )
         
     except Exception as e:
-        logger.error(f"Error generating agent description: {str(e)}")
+        logger.error(f"❌ [AD.JSON] Error generating agent description: {str(e)}")
         error_response = {
             "error": "Error generating agent description",
             "details": str(e),
@@ -133,7 +137,12 @@ async def handle_jsonrpc_call(request: Request):
     try:
         # Read raw request body
         body = await request.body()
-        logger.info(f"Raw JSON-RPC request body: {body.decode('utf-8')}")
+        body_text = body.decode('utf-8')
+        logger.info(f"🔵 [JSON-RPC REQUEST] Raw body: {body_text}")
+        
+        # Log request headers for debugging
+        headers = dict(request.headers)
+        logger.info(f"🔵 [JSON-RPC REQUEST] Headers: {json.dumps(headers, indent=2)}")
         
         # Manual JSON parsing
         try:
@@ -172,7 +181,9 @@ async def handle_jsonrpc_call(request: Request):
         params = rpc_data.get("params", {})
         request_id = rpc_data.get("id")
         
-        logger.info(f"Parsed JSON-RPC: method={method}, params={params}, id={request_id}")
+        logger.info(f"🔵 [JSON-RPC PARSED] Method: {method}")
+        logger.info(f"🔵 [JSON-RPC PARSED] Params: {json.dumps(params, ensure_ascii=False, indent=2)}")
+        logger.info(f"🔵 [JSON-RPC PARSED] ID: {request_id} (type: {type(request_id)})")
         
         if not method:
             logger.error("Missing method in JSON-RPC request")
@@ -195,7 +206,7 @@ async def handle_jsonrpc_call(request: Request):
             request_id=request_id
         )
         
-        logger.info(f"Agent router response: {response_dict}")
+        logger.info(f"🟢 [JSON-RPC RESPONSE] Success: {json.dumps(response_dict, ensure_ascii=False, indent=2)}")
         
         # Return JSON response
         return JSONResponse(content=response_dict)

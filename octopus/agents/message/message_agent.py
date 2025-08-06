@@ -237,6 +237,7 @@ class MessageAgent(BaseAgent):
             
             # Log the operation
             self.logger.info(f"Message received successfully: {message_id} from {sender_did}")
+            self.logger.info(f"Message content: {message_content}")
             
             return {
                 "success": True,
@@ -297,28 +298,29 @@ class MessageAgent(BaseAgent):
     async def _send_message_via_anp(self, message_content: str, agent_ad_json_url: str, 
                                    message_id: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """
-        使用 ANP 协议发送消息的核心方法。
+        Core method for sending messages using ANP protocol.
         
         Args:
-            message_content: 消息内容
-            agent_ad_json_url: 目标智能体的 AD.json URL
-            message_id: 消息ID
-            metadata: 元数据
+            message_content: Message content
+            agent_ad_json_url: Target agent's AD.json URL
+            message_id: Message ID
+            metadata: Metadata
             
         Returns:
-            发送结果字典
+            Sending result dictionary
         """
         try:
-            # 第一步：使用 ANP Crawler 获取目标智能体的接口信息
+            # Step 1: Use ANP Crawler to get target agent's interface information
             self.logger.info(f"Step 1: Fetching agent description from {agent_ad_json_url}")
             
-            # 获取 ANP Crawler 实例
+            # Get ANP Crawler instance
             crawler = self._get_anp_crawler()
             
-            # 获取智能体描述和工具列表
+            # Get agent description and tool list
             content_json, interfaces_list = await crawler.fetch_text(agent_ad_json_url)
             
-            self.logger.info(f"Successfully fetched agent description, found {len(interfaces_list)} tools")
+            self.logger.info(f"🟡 [MESSAGE AGENT] Successfully fetched agent description, found {len(interfaces_list)} tools")
+            self.logger.info(f"🟡 [MESSAGE AGENT] Available tools: {interfaces_list}")
             
             if not interfaces_list:
                 return {
@@ -327,13 +329,13 @@ class MessageAgent(BaseAgent):
                     "agent_ad_json_url": agent_ad_json_url
                 }
             
-            # 第二步：使用 OpenAI 模型分析和调用合适的工具
-            self.logger.info("Step 2: Using OpenAI to analyze and call appropriate tools")
+            # Step 2: Use OpenAI model to analyze and call appropriate tools
+            self.logger.info("🟡 [MESSAGE AGENT] Step 2: Using OpenAI to analyze and call appropriate tools")
             
-            # 准备 ANP 专用提示词（包含智能体描述信息）
+            # Prepare ANP-specific prompt (including agent description information)
             anp_prompt = self._build_anp_prompt(message_content, agent_ad_json_url, content_json)
             
-            # 调用 OpenAI 进行工具选择和执行
+            # Call OpenAI for tool selection and execution
             tool_call_result = await self._call_openai_with_tools(
                 anp_prompt, 
                 interfaces_list, 
@@ -352,7 +354,7 @@ class MessageAgent(BaseAgent):
             }
     
     def _get_anp_crawler(self):
-        """获取 ANP Crawler 实例。"""
+        """Get ANP Crawler instance."""
         if self._anp_crawler is None:
             from octopus.anp_sdk.anp_crawler.anp_crawler import ANPCrawler
             settings = get_settings()
@@ -366,52 +368,52 @@ class MessageAgent(BaseAgent):
         return self._anp_crawler
     
     def _build_anp_prompt(self, message_content: str, agent_ad_json_url: str, content_json: dict) -> str:
-        """构建 ANP 专用提示词，包含目标智能体的完整描述信息。"""
+        """Build ANP-specific prompt, including complete description information of the target agent."""
         import json
         
-        # 将content_json转换为格式化的JSON字符串
+        # Convert content_json to formatted JSON string
         content_json_str = json.dumps(content_json, ensure_ascii=False, indent=2)
         
-        return f"""你是一个专业的 ANP (Agent Network Protocol) 智能体消息发送助手。你的任务是使用 ANP 协议向目标智能体发送消息。
+        return f"""You are a professional ANP (Agent Network Protocol) agent message sending assistant. Your task is to send messages to target agents using the ANP protocol.
 
-## 当前任务
-发送消息: {message_content}
-目标智能体: {agent_ad_json_url}
+## Current Task
+Send message: {message_content}
+Target agent: {agent_ad_json_url}
 
-## 目标智能体完整信息
+## Complete Target Agent Information
 {content_json_str}
 
-## 工作流程
-1. 我已经为你获取了目标智能体的接口定义（tools）和完整的智能体描述信息
-2. 请仔细分析目标智能体的功能、描述和可用接口
-3. 找到合适的消息接收功能（通常是 receive_message 或类似的方法）
-4. 使用正确的参数调用该接口来发送消息
+## Workflow
+1. I have already obtained the interface definitions (tools) and complete agent description information for the target agent
+2. Please carefully analyze the target agent's functions, descriptions, and available interfaces
+3. Find the appropriate message receiving function (usually receive_message or similar methods)
+4. Use the correct parameters to call the interface to send the message
 
-## 重要说明
-- 你的目标是将消息"{message_content}"发送给目标智能体
-- 优先寻找名为 "receive_message" 或包含 "message" 关键词的接口
-- 根据上面显示的目标智能体描述和功能，选择最合适的接口
-- 确保使用正确的参数格式调用接口，特别注意：
-  * message_content 参数：填入要发送的消息内容 "{message_content}"
-  * sender_did 参数：使用发送方ID，应填入 "{self.agent_id}"
-  * metadata 参数：如果需要，可以传入空字典 {{}}
-  * 其他必需参数请根据接口定义和智能体描述正确填写
-- 如果找不到合适的接口，请详细说明原因和可用的接口列表
+## Important Notes
+- Your goal is to send the message "{message_content}" to the target agent
+- Prioritize interfaces named "receive_message" or containing "message" keywords
+- Based on the target agent description and functions shown above, choose the most suitable interface
+- Ensure correct parameter format when calling the interface, especially:
+  * message_content parameter: Fill in the message content to be sent "{message_content}"
+  * sender_did parameter: Use sender ID, should be filled with "{self.agent_id}"
+  * metadata parameter: If needed, you can pass an empty dictionary {{}}
+  * Other required parameters should be filled correctly according to interface definition and agent description
+- If no suitable interface is found, please explain the reason in detail and list available interfaces
 
-请仔细分析目标智能体的信息和可用工具，然后选择合适的工具执行消息发送。"""
+Please carefully analyze the target agent's information and available tools, then choose the appropriate tool to execute message sending."""
     
     async def _call_openai_with_tools(self, prompt: str, tools: List[Dict], 
                                      message_content: str, crawler) -> Dict[str, Any]:
-        """使用 OpenAI 调用工具的核心方法。"""
+        """Core method for calling tools using OpenAI."""
         try:
-            self.logger.info(f"Calling OpenAI with {len(tools)} tools available")
+            self.logger.info(f"🟡 [MESSAGE AGENT] Calling OpenAI with {len(tools)} tools available")
             
-            # 调用 OpenAI 模型
+            # Call OpenAI model
             response = await self.openai_client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": prompt},
-                    {"role": "user", "content": f"请发送消息: {message_content}"}
+                    {"role": "user", "content": f"Please send message: {message_content}"}
                 ],
                 tools=tools,
                 tool_choice="auto",
@@ -420,7 +422,7 @@ class MessageAgent(BaseAgent):
             
             message = response.choices[0].message
             
-            # 检查是否有工具调用
+            # Check if there are tool calls
             if not message.tool_calls:
                 return {
                     "success": False,
@@ -428,8 +430,8 @@ class MessageAgent(BaseAgent):
                     "openai_response": message.content
                 }
             
-            # 执行工具调用
-            self.logger.info(f"OpenAI chose to call {len(message.tool_calls)} tool(s)")
+            # Execute tool calls
+            self.logger.info(f"🟡 [MESSAGE AGENT] OpenAI chose to call {len(message.tool_calls)} tool(s)")
             
             results = []
             for tool_call in message.tool_calls:
@@ -438,9 +440,9 @@ class MessageAgent(BaseAgent):
                 
                 try:
                     arguments = json.loads(arguments_str)
-                    self.logger.info(f"Executing tool: {tool_name} with arguments: {arguments}")
+                    self.logger.info(f"🟡 [MESSAGE AGENT] Executing tool: {tool_name} with arguments: {arguments}")
                     
-                    # 使用 ANP Crawler 执行工具调用
+                    # Use ANP Crawler to execute tool call
                     execution_result = await crawler.execute_tool_call(tool_name, arguments)
                     
                     results.append({
@@ -449,11 +451,11 @@ class MessageAgent(BaseAgent):
                         "result": execution_result
                     })
                     
-                    # 如果这是消息发送工具且成功了，返回成功
+                    # If this is a message sending tool and it succeeded, return success
                     if (execution_result.get("success", False) and 
                         ("receive_message" in tool_name.lower() or "message" in tool_name.lower())):
                         
-                        self.logger.info(f"Message successfully sent via {tool_name}")
+                        self.logger.info(f"🟢 [MESSAGE AGENT] Message successfully sent via {tool_name}")
                         return {
                             "success": True,
                             "tool_results": results,
@@ -474,7 +476,7 @@ class MessageAgent(BaseAgent):
                         "error": str(e)
                     })
             
-            # 如果到这里说明没有成功的消息发送
+            # If we reach here, it means no successful message sending
             return {
                 "success": False,
                 "error": "No successful message sending tool found",

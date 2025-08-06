@@ -69,7 +69,8 @@ async def get_status():
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Process chat message through the master agent."""
-    logger.info(f"Chat request received: {request.message[:100]}...")
+    logger.info(f"🔵 [CHAT ROUTER] Chat request received: {request.message[:100]}...")
+    logger.info(f"🔵 [CHAT ROUTER] Full message: {request.message}")
     
     request_id = str(uuid.uuid4())
     timestamp = datetime.now().isoformat()
@@ -88,7 +89,8 @@ async def chat(request: ChatRequest):
             request_id=request_id
         )
         
-        logger.info(f"Chat response generated for request {request_id}")
+        logger.info(f"🟢 [CHAT ROUTER] Chat response generated for request {request_id}")
+        logger.info(f"🟢 [CHAT ROUTER] Response content: {response_text}")
         
         return ChatResponse(
             success=True,
