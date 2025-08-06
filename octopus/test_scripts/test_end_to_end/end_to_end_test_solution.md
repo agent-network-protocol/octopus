@@ -106,3 +106,17 @@ class MessageAgent(BaseAgent):
         # 3. 处理工具调用
         # 4. 返回结果
 ```
+
+
+## web输入示例
+
+我要给一个智能体发送一个消息，消息内容是：你好。
+智能体的URL是：https://127.0.0.1:8000/agent/ad.json
+
+
+
+
+
+
+
+

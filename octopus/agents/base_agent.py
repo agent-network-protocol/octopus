@@ -4,6 +4,7 @@ Base agent class for all agents in the Octopus system.
 
 import logging
 import uuid
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, List
 from datetime import datetime
@@ -155,7 +156,7 @@ class BaseAgent(ABC):
         self.logger.debug(f"Added capability '{name}' to agent {self.info.name}")
     
     def execute_with_tracking(self, method_name: str, *args, **kwargs) -> Any:
-        """Execute a method with performance tracking."""
+        """Execute a method with performance tracking (supports both sync and async methods)."""
         start_time = datetime.now()
         
         try:
@@ -166,7 +167,28 @@ class BaseAgent(ABC):
             
             # Execute the method
             self.logger.debug(f"Executing method '{method_name}' on agent {self.info.name}")
-            result = method(*args, **kwargs)
+            
+            # Check if method is async
+            if inspect.iscoroutinefunction(method):
+                # For async methods, we need to run in an event loop
+                try:
+                    # Try to get existing event loop
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # If loop is already running, create a new thread
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(asyncio.run, method(*args, **kwargs))
+                            result = future.result()
+                    else:
+                        # Safe to use run_until_complete
+                        result = loop.run_until_complete(method(*args, **kwargs))
+                except RuntimeError:
+                    # No event loop exists, create a new one
+                    result = asyncio.run(method(*args, **kwargs))
+            else:
+                # Sync method
+                result = method(*args, **kwargs)
             
             # Update statistics
             execution_time = (datetime.now() - start_time).total_seconds()
