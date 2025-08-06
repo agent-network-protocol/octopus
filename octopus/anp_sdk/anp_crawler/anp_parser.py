@@ -66,6 +66,11 @@ class ANPDocumentParser:
         """Extract interfaces from Agent Description document."""
         interfaces = []
         
+        # Extract global servers information from agent description (may be used by embedded interfaces)
+        global_servers = []
+        if "servers" in data:
+            global_servers = data["servers"]
+        
         # Extract interfaces from the interfaces field
         if "interfaces" in data:
             for interface_def in data["interfaces"]:
@@ -78,19 +83,31 @@ class ANPDocumentParser:
                     content = interface_def["content"]
                     if isinstance(content, dict) and self._is_openrpc_interface(content):
                         embedded_interfaces = self._extract_openrpc_interfaces(content)
+                        
+                        # If embedded interfaces don't have servers, use global servers
+                        for embedded_interface in embedded_interfaces:
+                            if not embedded_interface.get("servers") and global_servers:
+                                embedded_interface["parent_servers"] = global_servers
+                        
                         interfaces.extend(embedded_interfaces)
                     else:
                         logger.warning(f"Invalid OpenRPC content in StructuredInterface: {interface_def.get('description', 'unknown')}")
                 else:
                     # Regular interface definition (URL-based)
-                    interfaces.append({
+                    interface_info = {
                         "type": interface_def.get("type", "unknown"),
                         "protocol": interface_def.get("protocol", "unknown"),
                         "url": interface_def.get("url", ""),
                         "description": interface_def.get("description", ""),
                         "version": interface_def.get("version", ""),
                         "source": "agent_description"
-                    })
+                    }
+                    
+                    # Add servers information if available
+                    if global_servers:
+                        interface_info["parent_servers"] = global_servers
+                    
+                    interfaces.append(interface_info)
         
         return interfaces
     
@@ -142,6 +159,7 @@ class ANPDocumentParser:
         
         methods = data.get("methods", [])
         components = data.get("components", {})
+        servers = data.get("servers", [])  # Extract servers information
         
         for method in methods:
             if isinstance(method, dict):
@@ -154,6 +172,7 @@ class ANPDocumentParser:
                     "params": method.get("params", []),
                     "result": method.get("result", {}),
                     "components": components,  # Include components for $ref resolution
+                    "servers": servers,  # Include servers for execution
                     "source": "openrpc_interface"
                 })
         

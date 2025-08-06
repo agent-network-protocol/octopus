@@ -1,19 +1,152 @@
 """
-ANP Interface Converter Module
+ANP Interface Module
 
 This module provides functionality to convert JSON-RPC and OpenRPC interface formats
-to OpenAI Tools JSON format for seamless LLM integration.
+to OpenAI Tools JSON format, and execute tool calls by sending HTTP requests.
 """
 
 import logging
+import json
 from typing import Dict, Any, Optional, List
+from .anp_client import ANPClient
 
 logger = logging.getLogger(__name__)
 
 
 class ANPInterface:
     """
-    Interface converter for transforming JSON-RPC and OpenRPC interfaces to OpenAI Tools format.
+    Represents a single ANP interface that can execute tool calls.
+    Each instance corresponds to one OpenAI tool function.
+    """
+    
+    def __init__(self, tool_name: str, interface_data: Dict[str, Any], anp_client: ANPClient):
+        """
+        Initialize ANP interface for a specific tool.
+        
+        Args:
+            tool_name: The OpenAI tool function name
+            interface_data: Original interface metadata
+            anp_client: ANP client for HTTP requests
+        """
+        self.tool_name = tool_name
+        self.interface_data = interface_data
+        self.anp_client = anp_client
+        
+        # Extract key information
+        self.method_name = interface_data.get("method_name", "")
+        self.servers = interface_data.get("servers", [])
+        if not self.servers and "parent_servers" in interface_data:
+            self.servers = interface_data["parent_servers"]
+    
+    async def execute(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute this interface with given arguments.
+        
+        Args:
+            arguments: Arguments to pass to the tool
+            
+        Returns:
+            Dictionary containing execution result
+        """
+        if not self.servers:
+            return {
+                "success": False,
+                "error": f"No servers defined for tool: {self.tool_name}",
+                "tool_name": self.tool_name
+            }
+        
+        # Use the first server
+        server = self.servers[0]
+        server_url = server.get("url", "")
+        
+        if not server_url:
+            return {
+                "success": False,
+                "error": f"No server URL found for tool: {self.tool_name}",
+                "tool_name": self.tool_name
+            }
+        
+        if not self.method_name:
+            return {
+                "success": False,
+                "error": f"No method name found for tool: {self.tool_name}",
+                "tool_name": self.tool_name
+            }
+        
+        try:
+            # Build JSON-RPC request
+            rpc_request = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": self.method_name,
+                "params": arguments
+            }
+            
+            logger.info(f"Executing tool call: {self.tool_name} -> {self.method_name} at {server_url}")
+            
+            # Send HTTP POST request
+            response = await self.anp_client.fetch_url(
+                url=server_url,
+                method="POST",
+                headers={"Content-Type": "application/json"},
+                body=rpc_request
+            )
+            
+            if not response.get("success", False):
+                return {
+                    "success": False,
+                    "error": f"HTTP request failed: {response.get('error', 'Unknown error')}",
+                    "url": server_url,
+                    "method": self.method_name,
+                    "tool_name": self.tool_name
+                }
+            
+            # Parse JSON-RPC response
+            try:
+                response_text = response.get("text", "")
+                rpc_response = json.loads(response_text)
+                
+                if "error" in rpc_response:
+                    return {
+                        "success": False,
+                        "error": f"JSON-RPC error: {rpc_response['error']}",
+                        "url": server_url,
+                        "method": self.method_name,
+                        "tool_name": self.tool_name
+                    }
+                
+                # Successful response
+                return {
+                    "success": True,
+                    "result": rpc_response.get("result"),
+                    "url": server_url,
+                    "method": self.method_name,
+                    "tool_name": self.tool_name
+                }
+                
+            except json.JSONDecodeError as e:
+                return {
+                    "success": False,
+                    "error": f"Failed to parse JSON-RPC response: {str(e)}",
+                    "url": server_url,
+                    "method": self.method_name,
+                    "tool_name": self.tool_name
+                }
+                
+        except Exception as e:
+            logger.error(f"Error executing tool call {self.tool_name}: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Execution error: {str(e)}",
+                "url": server_url,
+                "method": self.method_name,
+                "tool_name": self.tool_name
+            }
+
+
+class ANPInterfaceConverter:
+    """
+    Converter for transforming JSON-RPC and OpenRPC interfaces to OpenAI Tools format.
     
     Supported conversions:
     - openrpc → OpenAI Tools
@@ -70,6 +203,25 @@ class ANPInterface:
         else:
             logger.warning(f"Unsupported interface type: {interface_type}. Only JSON-RPC and OpenRPC methods are supported.")
             return None
+    
+    def create_anp_interface(self, interface_data: Dict[str, Any], anp_client: ANPClient) -> Optional[ANPInterface]:
+        """
+        Create an ANPInterface instance from interface data.
+        
+        Args:
+            interface_data: Interface definition from parser
+            anp_client: ANP client for HTTP requests
+            
+        Returns:
+            ANPInterface instance or None if creation fails
+        """
+        # First convert to OpenAI tools to get the tool name
+        openai_tool = self.convert_to_openai_tools(interface_data)
+        if not openai_tool:
+            return None
+        
+        tool_name = openai_tool["function"]["name"]
+        return ANPInterface(tool_name, interface_data, anp_client)
     
     def _convert_jsonrpc_method(self, interface_data: Dict[str, Any]) -> Dict[str, Any]:
         """Convert JSON-RPC method to OpenAI Tools format."""

@@ -11,7 +11,7 @@ from urllib.parse import urlparse, urlunparse
 
 from .anp_client import ANPClient
 from .anp_parser import ANPDocumentParser
-from .anp_interface import ANPInterface
+from .anp_interface import ANPInterface, ANPInterfaceConverter
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +45,15 @@ class ANPCrawler:
         # Initialize components
         self._client = None  # ANPClient instance
         self._parser = None  # ANPDocumentParser instance
-        self._interface_converter = None  # ANPInterface instance
+        self._interface_converter = None  # ANPInterfaceConverter instance
         
         # Session state
         self._visited_urls: set = set()
         self._cache: Dict[str, Any] = {}
         self._agent_description_uri: Optional[str] = None  # Track first URL as agent description URI
+        
+        # ANP Interfaces storage (tool_name -> ANPInterface)
+        self._anp_interfaces: Dict[str, ANPInterface] = {}
         
         # Initialize components
         self._initialize_components()
@@ -69,7 +72,7 @@ class ANPCrawler:
         self._parser = ANPDocumentParser()
         
         # Initialize interface converter
-        self._interface_converter = ANPInterface()
+        self._interface_converter = ANPInterfaceConverter()
         
         logger.info("ANP session components initialized successfully")
     
@@ -125,13 +128,19 @@ class ANPCrawler:
             # Parse document to extract interfaces
             parsed_data = self._parser.parse_document(raw_text, content_type, url)
             
-            # Convert interfaces to OpenAI Tools format
+            # Convert interfaces to OpenAI Tools format and create ANPInterface instances
             interfaces_list = []
             if parsed_data.get("interfaces"):
                 for interface_data in parsed_data["interfaces"]:
                     converted_interface = self._interface_converter.convert_to_openai_tools(interface_data)
                     if converted_interface:
                         interfaces_list.append(converted_interface)
+                        
+                        # Create and store ANPInterface instance
+                        anp_interface = self._interface_converter.create_anp_interface(interface_data, self._client)
+                        if anp_interface:
+                            self._anp_interfaces[anp_interface.tool_name] = anp_interface
+                            logger.debug(f"Created ANPInterface for tool: {anp_interface.tool_name}")
             
             # Build content JSON according to new format
             content_json = {
@@ -306,3 +315,70 @@ class ANPCrawler:
         except Exception as e:
             logger.warning(f"Failed to parse URL {url}: {str(e)}")
             return url
+    
+    async def execute_tool_call(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute a tool call by name with given arguments.
+        
+        This method finds the corresponding ANPInterface for the tool and executes
+        the JSON-RPC request to the appropriate server.
+        
+        Args:
+            tool_name: The OpenAI tool function name
+            arguments: Dictionary of arguments to pass to the tool
+            
+        Returns:
+            Dictionary containing execution result
+        """
+        logger.info(f"Executing tool call: {tool_name}")
+        
+        # Find the ANPInterface for this tool
+        anp_interface = self._anp_interfaces.get(tool_name)
+        if not anp_interface:
+            return {
+                "success": False,
+                "error": f"No ANPInterface found for tool: {tool_name}",
+                "tool_name": tool_name
+            }
+        
+        return await anp_interface.execute(arguments)
+    
+    def get_tool_interface_info(self, tool_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get stored interface metadata for a tool.
+        
+        Args:
+            tool_name: The OpenAI tool function name
+            
+        Returns:
+            Interface metadata dictionary or None if not found
+        """
+        anp_interface = self._anp_interfaces.get(tool_name)
+        if not anp_interface:
+            return None
+            
+        return {
+            "tool_name": anp_interface.tool_name,
+            "method_name": anp_interface.method_name,
+            "servers": anp_interface.servers,
+            "interface_data": anp_interface.interface_data
+        }
+    
+    def list_available_tools(self) -> List[str]:
+        """
+        Get list of all available tool names that can be executed.
+        
+        Returns:
+            List of tool names
+        """
+        return list(self._anp_interfaces.keys())
+    
+    def clear_tool_interfaces(self):
+        """
+        Clear all stored tool interface mappings.
+        
+        This is useful when starting a new session or when you want to
+        reset the tool mappings.
+        """
+        self._anp_interfaces.clear()
+        logger.info("Cleared all tool interface mappings")

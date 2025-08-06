@@ -74,9 +74,12 @@ ANP_MESSAGE_SENDING_PROMPT = """
 """
 ```
 
-#### 2.3 ANP Crawler Wrapper 工具定义
+#### 2.3 ANP Crawler 工具定义
 
-使用方法anp_fetch_text_content。
+1. 使用 anp_fetch_text_content 工具访问目标智能体的 AD.json 描述文档
+在使用ANPCrawler的方法fetch_text获得ad.json的内容，以及tools。将tools作为OpenAI api的tools传入。这里要构造一个新的工具传递给模型，然后模型调用的时候，调用到ANPCrawler中。
+
+使用ANPCrawler调用tools的方法进行调用。
 
 #### 2.5 Message Agent 的 OpenAI 集成
 
