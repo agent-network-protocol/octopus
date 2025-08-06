@@ -24,8 +24,6 @@ from agent_connect.authentication import (
     DIDWbaAuthHeader,
 )
 
-from .custom_did_resolver import resolve_local_did_document
-
 from octopus.config.settings import get_settings
 from .token_auth import create_access_token
 
@@ -162,18 +160,7 @@ async def handle_did_auth(authorization: str, domain: str) -> Dict:
             logging.error(f"Invalid or expired nonce: {nonce}")
             raise HTTPException(status_code=401, detail="Invalid or expired nonce")
 
-        # Try to resolve DID document using custom resolver
-        did_document = await resolve_local_did_document(did)
-
-        # If custom resolver fails, try using standard resolver
-        if not did_document:
-            logging.info(f"Local DID resolution failed, trying standard resolver for DID: {did}")
-            try:
-                did_document = await resolve_did_wba_document(did)
-            except Exception as e:
-                logging.error(f"Standard DID resolver also failed: {e}")
-                did_document = None
-
+        did_document = await resolve_did_wba_document(did)
         if not did_document:
             raise HTTPException(
                 status_code=401, detail="Failed to resolve DID document"

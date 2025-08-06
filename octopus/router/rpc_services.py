@@ -10,7 +10,7 @@ while maintaining clear separation of concerns.
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +176,7 @@ class JSONRPCHandler:
         """
         self.agent_router = agent_router
     
-    def handle_call(self, method: str, params: Dict[str, Any], request_id: str) -> Dict[str, Any]:
+    def handle_call(self, method: str, params: Dict[str, Any], request_id: Union[str, int]) -> Dict[str, Any]:
         """
         Handle a JSON-RPC method call with access level enforcement.
         
@@ -189,19 +189,24 @@ class JSONRPCHandler:
             JSON-RPC response dictionary
         """
         try:
-            logger.info(f"Handling JSON-RPC call: {method}")
+            logger.info(f"Handling JSON-RPC call: {method} with params: {params}")
             
             # Parse method name (format: agent_name.method_name)
             if "." not in method:
+                logger.error(f"Invalid method format: {method}")
                 return self._create_error_response(
                     request_id, -32601, "Method not found",
                     f"Invalid method format. Expected 'agent_name.method_name', got '{method}'"
                 )
             
             agent_name, method_name = method.split(".", 1)
+            logger.info(f"Parsed method: agent={agent_name}, method={method_name}")
             
             # Check if method is allowed for external access
-            if not self._is_method_accessible(agent_name, method_name):
+            is_accessible = self._is_method_accessible(agent_name, method_name)
+            logger.info(f"Method accessibility check: {is_accessible}")
+            
+            if not is_accessible:
                 logger.warning(f"Access denied: Method {agent_name}.{method_name} is internal only")
                 return self._create_error_response(
                     request_id, -32601, "Method not found",
@@ -210,7 +215,9 @@ class JSONRPCHandler:
             
             # Execute agent method
             try:
+                logger.info(f"Executing agent method: {agent_name}.{method_name}")
                 result = self.agent_router.execute_agent_method(agent_name, method_name, params)
+                logger.info(f"Agent method execution successful, result: {result}")
                 return self._create_success_response(request_id, result)
                 
             except ValueError as e:
@@ -249,7 +256,7 @@ class JSONRPCHandler:
         
         return access_level in ['external', 'both']
     
-    def _create_success_response(self, request_id: str, result: Any) -> Dict[str, Any]:
+    def _create_success_response(self, request_id: Union[str, int], result: Any) -> Dict[str, Any]:
         """Create a successful JSON-RPC response."""
         return {
             "jsonrpc": "2.0",
@@ -257,7 +264,7 @@ class JSONRPCHandler:
             "result": result
         }
     
-    def _create_error_response(self, request_id: str, code: int, message: str, data: str = None) -> Dict[str, Any]:
+    def _create_error_response(self, request_id: Union[str, int], code: int, message: str, data: str = None) -> Dict[str, Any]:
         """Create an error JSON-RPC response."""
         error_response = {
             "jsonrpc": "2.0",

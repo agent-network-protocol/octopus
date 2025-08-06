@@ -74,15 +74,38 @@ class ANPInterface:
             }
         
         try:
+            # Process arguments to handle string JSON values
+            processed_arguments = {}
+            for key, value in arguments.items():
+                if isinstance(value, str):
+                    # Try to parse as JSON if it looks like JSON
+                    if (value.startswith('{') and value.endswith('}')) or \
+                       (value.startswith('[') and value.endswith(']')):
+                        try:
+                            parsed_value = json.loads(value)
+                            processed_arguments[key] = parsed_value
+                            logger.info(f"Parsed JSON parameter {key}: {value} -> {parsed_value}")
+                        except json.JSONDecodeError:
+                            processed_arguments[key] = value
+                            logger.warning(f"Failed to parse JSON parameter {key}: {value}")
+                    else:
+                        processed_arguments[key] = value
+                else:
+                    processed_arguments[key] = value
+            
+            logger.info(f"Original arguments: {arguments}")
+            logger.info(f"Processed arguments: {processed_arguments}")
+            
             # Build JSON-RPC request
             rpc_request = {
                 "jsonrpc": "2.0",
                 "id": 1,
                 "method": self.method_name,
-                "params": arguments
+                "params": processed_arguments
             }
             
             logger.info(f"Executing tool call: {self.tool_name} -> {self.method_name} at {server_url}")
+            logger.info(f"JSON-RPC request payload: {json.dumps(rpc_request, ensure_ascii=False, indent=2)}")
             
             # Send HTTP POST request
             response = await self.anp_client.fetch_url(
@@ -93,6 +116,7 @@ class ANPInterface:
             )
             
             if not response.get("success", False):
+                logger.error(f"HTTP request failed: {response}")
                 return {
                     "success": False,
                     "error": f"HTTP request failed: {response.get('error', 'Unknown error')}",
@@ -104,6 +128,19 @@ class ANPInterface:
             # Parse JSON-RPC response
             try:
                 response_text = response.get("text", "")
+                logger.info(f"HTTP response status: {response.get('status_code')}")
+                logger.info(f"HTTP response text: {response_text}")
+                
+                if not response_text:
+                    logger.error("Empty response text from server")
+                    return {
+                        "success": False,
+                        "error": "Empty response from server",
+                        "url": server_url,
+                        "method": self.method_name,
+                        "tool_name": self.tool_name
+                    }
+                
                 rpc_response = json.loads(response_text)
                 
                 if "error" in rpc_response:

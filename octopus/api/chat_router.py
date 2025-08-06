@@ -83,7 +83,7 @@ async def chat(request: ChatRequest):
             )
         
         # Process the message through master agent
-        response_text = master_agent.process_natural_language(
+        response_text = await master_agent.process_natural_language(
             request=request.message,
             request_id=request_id
         )

@@ -19,6 +19,7 @@ EXEMPT_PATHS = [
     "/wba/user/",  # Allow access to DID documents
     "/",  # Allow access to root endpoint
     "/ad.json",  # Allow access to agent description
+    "/v1/chat",  
 ]  # "/wba/test" path removed from exempt list, now requires authentication
 
 

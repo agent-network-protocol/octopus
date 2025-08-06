@@ -152,6 +152,34 @@ class AgentRouter:
         # Execute method
         return agent.execute_with_tracking(method_name, **validated_params)
     
+    async def execute_agent_method_async(self, agent_name: str, method_name: str, parameters: Dict[str, Any]) -> Any:
+        """Execute a method on an agent asynchronously."""
+        # Get agent instance
+        agent = self.get_agent_instance(agent_name)
+        if not agent:
+            raise ValueError(f"Agent '{agent_name}' not found or could not be instantiated")
+        
+        # Get method info
+        registration = self._agents[agent_name]
+        if method_name not in registration.methods:
+            raise ValueError(f"Method '{method_name}' not found in agent '{agent_name}'")
+        
+        # Validate parameters
+        validated_params = agent.validate_parameters(method_name, parameters)
+        
+        # Execute method directly if it's async
+        method = getattr(agent, method_name, None)
+        if not method:
+            raise AttributeError(f"Method '{method_name}' not found in agent {agent.info.name}")
+        
+        import inspect
+        if inspect.iscoroutinefunction(method):
+            # Direct async execution
+            return await method(**validated_params)
+        else:
+            # Sync method
+            return agent.execute_with_tracking(method_name, **validated_params)
+    
     def get_agent_schema(self, agent_name: str) -> Optional[Dict[str, Any]]:
         """Get the schema of an agent for LLM function calling."""
         registration = self._agents.get(agent_name)
@@ -375,8 +403,33 @@ def agent_interface(description: str = "", parameters: Dict[str, Any] = None,
         }
         
         @wraps(func)
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
+        async def async_wrapper(*args, **kwargs):
+            if inspect.iscoroutinefunction(func):
+                return await func(*args, **kwargs)
+            else:
+                return func(*args, **kwargs)
+        
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            if inspect.iscoroutinefunction(func):
+                # If it's an async function but called in sync context
+                import asyncio
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(asyncio.run, func(*args, **kwargs))
+                            return future.result()
+                    else:
+                        return loop.run_until_complete(func(*args, **kwargs))
+                except RuntimeError:
+                    return asyncio.run(func(*args, **kwargs))
+            else:
+                return func(*args, **kwargs)
+        
+        # Return the appropriate wrapper based on whether the function is async
+        wrapper = async_wrapper if inspect.iscoroutinefunction(func) else sync_wrapper
         
         return wrapper
     

@@ -118,7 +118,9 @@ class ANPClient:
             except Exception as e:
                 logger.error(f"Failed to get authentication header: {str(e)}")
 
-        async with aiohttp.ClientSession() as session:
+        # Set reasonable timeout for requests
+        timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=10)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             # Prepare request parameters
             request_kwargs = {
                 "url": url,
@@ -221,7 +223,9 @@ class ANPClient:
             Dictionary containing content metadata
         """
         try:
-            async with aiohttp.ClientSession() as session:
+            # Set reasonable timeout for requests
+            timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=10)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.head(url) as response:
                     content_type = response.headers.get("Content-Type", "")
                     content_length = response.headers.get("Content-Length", "0")

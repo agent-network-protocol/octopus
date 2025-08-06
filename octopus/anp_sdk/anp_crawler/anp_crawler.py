@@ -156,6 +156,8 @@ class ANPCrawler:
                 self._cache_set(url, result)
             
             logger.info(f"Successfully fetched text content from: {url}, found {len(interfaces_list)} interfaces")
+            logger.info(f"Interfaces: {interfaces_list}")
+            logger.info(f"Content: {content_json}")
             return result
             
         except Exception as e:

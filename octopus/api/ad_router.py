@@ -5,10 +5,11 @@ Provides agent description information and JSON-RPC interfaces.
 
 import logging
 from datetime import datetime
-from typing import Dict, Any
-from fastapi import APIRouter, HTTPException
+from typing import Dict, Any, Union
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+import json
 
 from octopus.router.agents_router import router as agent_router
 from octopus.config.settings import get_settings
@@ -30,7 +31,7 @@ class JSONRPCRequest(BaseModel):
     jsonrpc: str = "2.0"
     method: str
     params: Dict[str, Any] = {}
-    id: str
+    id: Union[str, int]  # JSON-RPC 2.0 allows string, number, or null for id
 
 
 class JSONRPCResponse(BaseModel):
@@ -38,7 +39,7 @@ class JSONRPCResponse(BaseModel):
     jsonrpc: str = "2.0"
     result: Any = None
     error: Dict[str, Any] = None
-    id: str
+    id: Union[str, int]  # JSON-RPC 2.0 allows string, number, or null for id
 
 
 @router.get("/ad.json")
@@ -119,44 +120,98 @@ async def get_agents_description():
 
 
 @router.post("/agents/jsonrpc")
-async def handle_jsonrpc_call(request: JSONRPCRequest):
+async def handle_jsonrpc_call(request: Request):
     """
-    Handle JSON-RPC calls to agent methods.
+    Handle JSON-RPC calls to agent methods with manual parsing for better compatibility.
     
     Args:
-        request: JSON-RPC request
+        request: Raw HTTP request
         
     Returns:
         JSON-RPC response
     """
     try:
+        # Read raw request body
+        body = await request.body()
+        logger.info(f"Raw JSON-RPC request body: {body.decode('utf-8')}")
+        
+        # Manual JSON parsing
+        try:
+            rpc_data = json.loads(body)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {str(e)}")
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32700,
+                        "message": "Parse error"
+                    },
+                    "id": None
+                }
+            )
+        
+        # Validate JSON-RPC format
+        if not isinstance(rpc_data, dict):
+            logger.error(f"Invalid JSON-RPC format: {type(rpc_data)}")
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32600,
+                        "message": "Invalid Request"
+                    },
+                    "id": rpc_data.get("id") if isinstance(rpc_data, dict) else None
+                }
+            )
+        
+        # Extract JSON-RPC fields
+        method = rpc_data.get("method")
+        params = rpc_data.get("params", {})
+        request_id = rpc_data.get("id")
+        
+        logger.info(f"Parsed JSON-RPC: method={method}, params={params}, id={request_id}")
+        
+        if not method:
+            logger.error("Missing method in JSON-RPC request")
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32600,
+                        "message": "Invalid Request - missing method"
+                    },
+                    "id": request_id
+                }
+            )
+        
         # Delegate to agent router for handling
         response_dict = agent_router.handle_jsonrpc_call(
-            method=request.method,
-            params=request.params,
-            request_id=request.id
+            method=method,
+            params=params,
+            request_id=request_id
         )
         
-        # Convert response dict to JSONRPCResponse
-        if "error" in response_dict:
-            return JSONRPCResponse(
-                id=response_dict["id"],
-                error=response_dict["error"]
-            )
-        else:
-            return JSONRPCResponse(
-                id=response_dict["id"],
-                result=response_dict["result"]
-            )
+        logger.info(f"Agent router response: {response_dict}")
+        
+        # Return JSON response
+        return JSONResponse(content=response_dict)
             
     except Exception as e:
         logger.error(f"Error handling JSON-RPC request: {str(e)}")
-        return JSONRPCResponse(
-            id=getattr(request, 'id', 'unknown'),
-            error={
-                "code": -32700,
-                "message": "Parse error",
-                "data": str(e)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32603,
+                    "message": "Internal error",
+                    "data": str(e)
+                },
+                "id": None
             }
         )
 

@@ -158,7 +158,7 @@ class MasterAgent(BaseAgent):
         returns="string",
         access_level="external"
     )
-    def process_natural_language(self, request: str, request_id: str) -> str:
+    async def process_natural_language(self, request: str, request_id: str) -> str:
         """
         Process natural language request and delegate to appropriate agent.
         
@@ -195,7 +195,7 @@ class MasterAgent(BaseAgent):
 您可以尝试重新描述您的需求，或者直接指定要使用的功能。"""
             
             # Execute the selected agent method
-            result = self._execute_agent_method(agent_selection)
+            result = await self._execute_agent_method(agent_selection)
             
             # Return the result as a string
             if isinstance(result, dict):
@@ -291,7 +291,7 @@ If no suitable agent is found, respond with:
             self.logger.error(f"Error in agent selection: {e}")
             return None
     
-    def _execute_agent_method(self, agent_selection: Dict[str, Any]) -> Any:
+    async def _execute_agent_method(self, agent_selection: Dict[str, Any]) -> Any:
         """Execute the selected agent method."""
         agent_name = agent_selection['agent_name']
         method_name = agent_selection['method_name']
@@ -300,8 +300,8 @@ If no suitable agent is found, respond with:
         self.logger.info(f"Executing {agent_name}.{method_name} with parameters: {parameters}")
         
         try:
-            # Call the agent method through the router
-            result = router.execute_agent_method(agent_name, method_name, parameters)
+            # Call the agent method through the router asynchronously
+            result = await router.execute_agent_method_async(agent_name, method_name, parameters)
             
             self.logger.info(f"Agent execution completed successfully")
             return result
