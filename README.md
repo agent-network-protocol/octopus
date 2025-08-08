@@ -36,7 +36,7 @@ uv sync
    # OpenAI Configuration
    OPENAI_API_KEY=your_actual_openai_api_key
    OPENAI_MODEL=gpt-4-turbo-preview
-   
+
    # Application Configuration
    APP_NAME=Octopus
    APP_PORT=9880
@@ -156,3 +156,13 @@ uv run python -m octopus.octopus
 ## 许可证
 
 本项目采用开源许可证，详见 [LICENSE](LICENSE) 文件。
+
+
+# 页面地址：
+
+http://localhost:9527/
+
+发送内容：
+
+我要给一个智能体发送一个消息，消息内容是：你好。智能体的URL是：http://localhost:9527/ad.json
+
