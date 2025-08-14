@@ -4,7 +4,7 @@ Message Agent - Agent for handling message sending and receiving operations.
 
 import json
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -25,7 +25,7 @@ class Message:
     recipient_did: str
     timestamp: datetime
     status: str = "pending"  # pending, sent, delivered, read, failed
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Initialize metadata if not provided."""

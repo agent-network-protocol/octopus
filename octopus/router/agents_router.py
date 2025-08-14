@@ -317,8 +317,8 @@ def register_agent(
     name: str,
     description: str = "",
     version: str = "1.0.0",
-    tags: list[str] = [],
-    dependencies: list[str] = [],
+    tags: list[str] | None = None,
+    dependencies: list[str] | None = None,
 ):
     """
     Decorator for registering an agent class.
@@ -339,8 +339,8 @@ def register_agent(
             "version": version,
             "class_reference": cls,
             "module": cls.__module__,
-            "tags": tags or [],
-            "dependencies": dependencies or [],
+            "tags": tags if tags is not None else [],
+            "dependencies": dependencies if dependencies is not None else [],
             "methods": {},
         }
 
@@ -418,9 +418,9 @@ def register_agent(
 
 def agent_interface(
     description: str = "",
-    parameters: dict[str, Any] = {},
+    parameters: dict[str, Any] | None = None,
     returns: str = "Any",
-    examples: list[dict[str, Any]] = [],
+    examples: list[dict[str, Any]] | None = None,
     deprecated: bool = False,
     access_level: str = "internal",
 ):
@@ -440,9 +440,9 @@ def agent_interface(
         # Attach metadata to function
         func._agent_method_meta = {
             "description": description,
-            "parameters": parameters or {},
+            "parameters": parameters if parameters is not None else {},
             "returns": returns,
-            "examples": examples or [],
+            "examples": examples if examples is not None else [],
             "deprecated": deprecated,
             "access_level": access_level,
         }
