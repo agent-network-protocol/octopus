@@ -2,9 +2,8 @@ import logging
 import logging.handlers
 import os
 import sys
-from datetime import datetime
+
 from dotenv import load_dotenv
-from pathlib import Path
 
 # Load environment variables
 load_dotenv()
@@ -24,7 +23,7 @@ class ColoredFormatter(logging.Formatter):
         levelname = record.levelname
         message = super().format(record)
         color = self.COLORS.get(levelname, self.COLORS["RESET"])
-        return color + message + self.COLORS["RESET"]
+        return color + message + self.COLORS["RESET"] + "\n"
 
 
 def get_project_name():
@@ -49,6 +48,14 @@ def get_project_name():
     return project_dir
 
 
+class EnhancedFormatter(logging.Formatter):
+    """Enhanced formatter that adds automatic newline after each log message."""
+    
+    def format(self, record):
+        message = super().format(record)
+        return message + "\n"
+
+
 def setup_logging(level=logging.INFO, log_file=None, propagate=False, include_location=True):
     """Set up logging with colored console output and file output.
     
@@ -64,7 +71,7 @@ def setup_logging(level=logging.INFO, log_file=None, propagate=False, include_lo
     else:
         log_format = '[%(asctime)s] %(levelname)-8s: %(message)s'
     
-    formatter = logging.Formatter(log_format, '%Y-%m-%d %H:%M:%S')
+    formatter = EnhancedFormatter(log_format, '%Y-%m-%d %H:%M:%S')
     
     # Create a colored formatter for console output
     try:
@@ -74,7 +81,12 @@ def setup_logging(level=logging.INFO, log_file=None, propagate=False, include_lo
         else:
             colored_format = '%(log_color)s[%(asctime)s] %(levelname)-8s: %(message)s%(reset)s'
         
-        colored_formatter = colorlog.ColoredFormatter(
+        class EnhancedColoredFormatter(colorlog.ColoredFormatter):
+            def format(self, record):
+                message = super().format(record)
+                return message + "\n"
+        
+        colored_formatter = EnhancedColoredFormatter(
             colored_format,
             '%Y-%m-%d %H:%M:%S',
             log_colors={
