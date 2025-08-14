@@ -12,6 +12,48 @@
 
 ## 架构速览
 
+
++---------------------+         +---------------------------------------------+
+| 客户端（Web/API）   |  --->   | FastAPI（`octopus/api/ad_router.py`）        |
++---------------------+         | - GET /ad.json -> OpenRPCGenerator（仅导出   |
+                                |   access_level=external/both 的方法）        |
+                                | - POST /agents/jsonrpc -> JSONRPCHandler     |
+                                +-------------------------------^-------------+
+                                                                |
+                                                                v
++----------------------+       +---------------------------------------------+
+| MasterAgent          |       | AgentRouter（单例，`octopus/router/agents_  |
+| (`octopus/master...`)|       | router.py`）                                |
+| - process_natural_   |       | - register()：注册Agent                     |
+|   language()         |       | - list_agents()/get_agent()：发现Agent与方法 |
+| - _select_agent()    |       | - execute_agent_method(_async)：统一执行     |
+| - _execute_agent()   |       | - generate_openrpc_interface()：导出OpenRPC  |
++-----------^----------+       +------------------------------^--------------+
+            | 使用                                               |
+            |                                                    |
+            |                                                    |
++-----------+----------------------------------+                 |
+| 子智能体（继承 `BaseAgent`）                 |                 |
+| `octopus/agents/...`                         |                 |
+| - @register_agent：类装饰器，注册到Router     |                 |
+| - @agent_interface：方法装饰器，描述参数/返回  |                 |
+|   与 access_level                            |                 |
++-----------------------------^----------------+                 |
+                              | 通过模块导入触发装饰器注册                     |
+                              |                                               |
++-----------------------------+---------------------------+                   |
+| `octopus/api/agent_loader.py`                           |                   |
+| - import 子智能体模块以触发装饰器 -> Router 完成登记     |-------------------+
++---------------------------------------------------------+
+
+交互流程概要
+整体流程是：开发者创建子智能体类继承 BaseAgent，用 @register_agent 装饰类、用 @agent_interface 装饰对外/对内方法（给出 description、parameters、returns、access_level）。当模块被 agent_loader 导入时，装饰器借助反射收集方法签名和注解，生成 MethodInfo 并封装为 AgentRegistration 注册到 AgentRouter。
+
+对外暴露时，/ad.json 通过 OpenRPCGenerator 仅导出 access_level ∈ {external, both} 的方法到 OpenRPC 规范；外部调用走 /agents/jsonrpc，由 JSONRPCHandler 解析 agent.method、校验访问级别，再委托 AgentRouter.execute_agent_method(_async) 调用子智能体方法。
+
+系统内部使用时，MasterAgent 读取 router.list_agents()/get_agent() 的能力元数据，结合 LLM 进行方法选择后，调用 router.execute_agent_method_async() 执行；参数校验与默认值填充由 BaseAgent.validate_parameters() 处理，异步方法会被自动 await。
+
+
 - **主智能体 `MasterAgent`（`octopus/master_agent.py`）**：
   - 自然语言入口，基于 `Agents Router` 的能力发现与委派。
   - 通过 `router.list_agents()` 汇总所有子智能体及方法元数据；调用 OpenAI 进行方法选择；再统一转发到路由执行。
