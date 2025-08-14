@@ -165,4 +165,3 @@ http://localhost:9527/
 发送内容：
 
 我要给一个智能体发送一个消息，消息内容是：你好。智能体的URL是：http://localhost:9527/ad.json
-

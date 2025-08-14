@@ -95,8 +95,8 @@ class MessageAgent(BaseAgent):
             base_url=settings.openai_base_url
         )
         self.model = settings.openai_model
-        
-    async def send_message(self, message_content: str, agent_ad_json_url: str, 
+
+    async def send_message(self, message_content: str, agent_ad_json_url: str,
                           metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         使用 ANP 协议向目标智能体发送消息
@@ -112,11 +112,3 @@ class MessageAgent(BaseAgent):
 
 我要给一个智能体发送一个消息，消息内容是：你好。
 智能体的URL是：https://127.0.0.1:8000/agent/ad.json
-
-
-
-
-
-
-
-

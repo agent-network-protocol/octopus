@@ -6,7 +6,7 @@ It manages crawling sessions, caches results, and coordinates different componen
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 from .anp_client import ANPClient
@@ -25,10 +25,7 @@ class ANPCrawler:
     """
 
     def __init__(
-        self,
-        did_document_path: str,
-        private_key_path: str,
-        cache_enabled: bool = True
+        self, did_document_path: str, private_key_path: str, cache_enabled: bool = True
     ):
         """
         Initialize ANP session with DID authentication.
@@ -49,11 +46,13 @@ class ANPCrawler:
 
         # Session state
         self._visited_urls: set = set()
-        self._cache: Dict[str, Any] = {}
-        self._agent_description_uri: Optional[str] = None  # Track first URL as agent description URI
+        self._cache: dict[str, Any] = {}
+        self._agent_description_uri: str | None = (
+            None  # Track first URL as agent description URI
+        )
 
         # ANP Interfaces storage (tool_name -> ANPInterface)
-        self._anp_interfaces: Dict[str, ANPInterface] = {}
+        self._anp_interfaces: dict[str, ANPInterface] = {}
 
         # Initialize components
         self._initialize_components()
@@ -65,7 +64,7 @@ class ANPCrawler:
         # Initialize HTTP client with DID authentication
         self._client = ANPClient(
             did_document_path=self.did_document_path,
-            private_key_path=self.private_key_path
+            private_key_path=self.private_key_path,
         )
 
         # Initialize document parser
@@ -76,7 +75,7 @@ class ANPCrawler:
 
         logger.info("ANP session components initialized successfully")
 
-    async def fetch_text(self, url: str) -> Tuple[Dict, List]:
+    async def fetch_text(self, url: str) -> tuple[dict, list]:
         """
         Fetch text content (JSON, YAML, plain text, etc.) from a URL.
 
@@ -115,9 +114,10 @@ class ANPCrawler:
 
             if not response_data.get("success", False):
                 error_content = {
-                    "agentDescriptionURI": self._agent_description_uri or self._remove_url_params(url),
+                    "agentDescriptionURI": self._agent_description_uri
+                    or self._remove_url_params(url),
                     "contentURI": self._remove_url_params(url),
-                    "content": f"Error: {response_data.get('error', 'Unknown error')}"
+                    "content": f"Error: {response_data.get('error', 'Unknown error')}",
                 }
                 return error_content, []
 
@@ -132,21 +132,31 @@ class ANPCrawler:
             interfaces_list = []
             if parsed_data.get("interfaces"):
                 for interface_data in parsed_data["interfaces"]:
-                    converted_interface = self._interface_converter.convert_to_openai_tools(interface_data)
+                    converted_interface = (
+                        self._interface_converter.convert_to_openai_tools(
+                            interface_data
+                        )
+                    )
                     if converted_interface:
                         interfaces_list.append(converted_interface)
 
                         # Create and store ANPInterface instance
-                        anp_interface = self._interface_converter.create_anp_interface(interface_data, self._client)
+                        anp_interface = self._interface_converter.create_anp_interface(
+                            interface_data, self._client
+                        )
                         if anp_interface:
-                            self._anp_interfaces[anp_interface.tool_name] = anp_interface
-                            logger.debug(f"Created ANPInterface for tool: {anp_interface.tool_name}")
+                            self._anp_interfaces[anp_interface.tool_name] = (
+                                anp_interface
+                            )
+                            logger.debug(
+                                f"Created ANPInterface for tool: {anp_interface.tool_name}"
+                            )
 
             # Build content JSON according to new format
             content_json = {
                 "agentDescriptionURI": self._agent_description_uri,
                 "contentURI": self._remove_url_params(url),
-                "content": raw_text
+                "content": raw_text,
             }
 
             result = (content_json, interfaces_list)
@@ -155,7 +165,9 @@ class ANPCrawler:
             if self.cache_enabled:
                 self._cache_set(url, result)
 
-            logger.info(f"Successfully fetched text content from: {url}, found {len(interfaces_list)} interfaces")
+            logger.info(
+                f"Successfully fetched text content from: {url}, found {len(interfaces_list)} interfaces"
+            )
             logger.info(f"Interfaces: {interfaces_list}")
             logger.info(f"Content: {content_json}")
             return result
@@ -164,13 +176,14 @@ class ANPCrawler:
             logger.error(f"Error fetching text content from {url}: {str(e)}")
 
             error_content = {
-                "agentDescriptionURI": self._agent_description_uri or self._remove_url_params(url),
+                "agentDescriptionURI": self._agent_description_uri
+                or self._remove_url_params(url),
                 "contentURI": self._remove_url_params(url),
-                "content": f"Error: {str(e)}"
+                "content": f"Error: {str(e)}",
             }
             return error_content, []
 
-    async def fetch_image(self, url: str) -> Tuple[Dict, List]:
+    async def fetch_image(self, url: str) -> tuple[dict, list]:
         """
         Fetch image information without downloading the actual file.
 
@@ -197,7 +210,7 @@ class ANPCrawler:
         """
         pass
 
-    async def fetch_video(self, url: str) -> Tuple[Dict, List]:
+    async def fetch_video(self, url: str) -> tuple[dict, list]:
         """
         Fetch video information without downloading the actual file.
 
@@ -225,7 +238,7 @@ class ANPCrawler:
         """
         pass
 
-    async def fetch_audio(self, url: str) -> Tuple[Dict, List]:
+    async def fetch_audio(self, url: str) -> tuple[dict, list]:
         """
         Fetch audio information without downloading the actual file.
 
@@ -252,7 +265,7 @@ class ANPCrawler:
         """
         pass
 
-    async def fetch_auto(self, url: str) -> Tuple[Dict, List]:
+    async def fetch_auto(self, url: str) -> tuple[dict, list]:
         """
         Automatically detect content type and call the appropriate fetch method.
 
@@ -269,20 +282,20 @@ class ANPCrawler:
         """
         pass
 
-    def _cache_get(self, url: str) -> Optional[Tuple[Dict, List]]:
+    def _cache_get(self, url: str) -> tuple[dict, list] | None:
         """Get cached result for a URL."""
         if not self.cache_enabled:
             return None
         return self._cache.get(url)
 
-    def _cache_set(self, url: str, result: Tuple[Dict, List]):
+    def _cache_set(self, url: str, result: tuple[dict, list]):
         """Cache result for a URL."""
         if not self.cache_enabled:
             return
         self._cache[url] = result
         logger.debug(f"Cached result for URL: {url}")
 
-    def get_visited_urls(self) -> List[str]:
+    def get_visited_urls(self) -> list[str]:
         """Get list of all visited URLs in this session."""
         return list(self._visited_urls)
 
@@ -309,16 +322,18 @@ class ANPCrawler:
                 parsed.scheme,
                 parsed.netloc,
                 parsed.path,
-                '',  # params
-                '',  # query
-                ''   # fragment
+                "",  # params
+                "",  # query
+                "",  # fragment
             ))
             return cleaned
         except Exception as e:
             logger.warning(f"Failed to parse URL {url}: {str(e)}")
             return url
 
-    async def execute_tool_call(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_tool_call(
+        self, tool_name: str, arguments: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Execute a tool call by name with given arguments.
 
@@ -340,12 +355,12 @@ class ANPCrawler:
             return {
                 "success": False,
                 "error": f"No ANPInterface found for tool: {tool_name}",
-                "tool_name": tool_name
+                "tool_name": tool_name,
             }
 
         return await anp_interface.execute(arguments)
 
-    def get_tool_interface_info(self, tool_name: str) -> Optional[Dict[str, Any]]:
+    def get_tool_interface_info(self, tool_name: str) -> dict[str, Any] | None:
         """
         Get stored interface metadata for a tool.
 
@@ -363,10 +378,10 @@ class ANPCrawler:
             "tool_name": anp_interface.tool_name,
             "method_name": anp_interface.method_name,
             "servers": anp_interface.servers,
-            "interface_data": anp_interface.interface_data
+            "interface_data": anp_interface.interface_data,
         }
 
-    def list_available_tools(self) -> List[str]:
+    def list_available_tools(self) -> list[str]:
         """
         Get list of all available tool names that can be executed.
 

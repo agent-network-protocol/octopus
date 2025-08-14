@@ -142,4 +142,4 @@ uv run python -c "from octopus.config.settings import get_settings; import json;
 
 # 测试环境变量加载
 uv run python -c "from dotenv import load_dotenv; load_dotenv(); import os; print('PORT:', os.getenv('PORT')); print('OPENAI_API_KEY:', 'SET' if os.getenv('OPENAI_API_KEY') else 'NOT SET')"
-``` 
+```

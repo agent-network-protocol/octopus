@@ -27,7 +27,7 @@
       "url": "https://grand-hotel.com/products/luxury-rooms.json"
     },
     {
-      "type": "Product", 
+      "type": "Product",
       "description": "Comprehensive concierge and guest services including dining, spa, and local attractions.",
       "url": "https://grand-hotel.com/products/concierge-services.json"
     },

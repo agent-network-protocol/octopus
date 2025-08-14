@@ -35,7 +35,7 @@ ad.json返回的格式按照下面的定义来进行处理：
   "interfaces": [
     {
       "type": "StructuredInterface",
-      "protocol": "openrpc", 
+      "protocol": "openrpc",
       "description": "OpenRPC interface for accessing hotel services.",
       "content": {
         "openrpc": "1.3.2",
@@ -67,7 +67,7 @@ ad.json返回的格式按照下面的定义来进行处理：
                 }
               },
               {
-                "name": "checkOutDate", 
+                "name": "checkOutDate",
                 "description": "Check-out date in YYYY-MM-DD format",
                 "required": true,
                 "schema": {
@@ -129,7 +129,7 @@ ad.json返回的格式按照下面的定义来进行处理：
               }
             ],
             "result": {
-              "name": "bookingResult", 
+              "name": "bookingResult",
               "description": "Booking confirmation and details",
               "schema": {
                 "type": "object",
@@ -196,7 +196,7 @@ ad.json返回的格式按照下面的定义来进行处理：
                   "description": "Price per night"
                 },
                 "totalPrice": {
-                  "type": "number", 
+                  "type": "number",
                   "description": "Total price for the stay"
                 },
                 "amenities": {
@@ -229,7 +229,7 @@ ad.json返回的格式按照下面的定义来进行处理：
                 },
                 "checkOutDate": {
                   "type": "string",
-                  "format": "date", 
+                  "format": "date",
                   "description": "Check-out date"
                 },
                 "guestInfo": {
@@ -432,7 +432,7 @@ The `/agents/jsonrpc` endpoint now enforces access levels:
 @router.post("/agents/jsonrpc")
 async def handle_jsonrpc_call(request: JSONRPCRequest):
     # ... parse method name ...
-    
+
     # Check if method is allowed for external access
     access_level = getattr(method_info, 'access_level', 'internal')
     if access_level not in ['external', 'both']:

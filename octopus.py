@@ -12,8 +12,10 @@ from fastapi.staticfiles import StaticFiles
 from octopus.agents.message.message_agent import MessageAgent
 from octopus.api.ad_router import router as ad_router
 from octopus.api.auth_middleware import auth_middleware
-from octopus.api.chat_router import router as chat_router
-from octopus.api.chat_router import set_agents
+from octopus.api.chat_router import (
+    router as chat_router,
+    set_agents,
+)
 from octopus.config.settings import get_settings
 from octopus.master_agent import MasterAgent
 from octopus.utils.log_base import setup_enhanced_logging
@@ -47,6 +49,7 @@ async def lifespan(app: FastAPI):
         # Initialize Text Processor Agent
         logger.info("Initializing Text Processor Agent...")
         from octopus.agents.text_processor_agent import TextProcessorAgent
+
         text_processor_agent = TextProcessorAgent()
         logger.info("Text Processor Agent initialized successfully")
 
@@ -89,7 +92,7 @@ app = FastAPI(
     description="A FastAPI application for the Octopus project",
     version=settings.app_version,
     debug=settings.debug,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add authentication middleware
@@ -111,13 +114,13 @@ async def root():
     """Serve the main chat interface."""
     logger.info("Root endpoint accessed - serving chat interface")
     try:
-        with open("web/index.html", "r", encoding="utf-8") as f:
+        with open("web/index.html", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         logger.error("index.html not found in web directory")
         return HTMLResponse(
             content="<h1>Chat interface not found</h1><p>Please check web directory setup.</p>",
-            status_code=404
+            status_code=404,
         )
 
 
@@ -135,7 +138,7 @@ async def get_info():
     return {
         "name": settings.app_name,
         "version": settings.app_version,
-        "description": "A FastAPI application for the Octopus project"
+        "description": "A FastAPI application for the Octopus project",
     }
 
 
@@ -143,7 +146,9 @@ def main():
     """Main function to run the FastAPI application."""
     import uvicorn
 
-    logger.info(f"Starting {settings.app_name} FastAPI server on {settings.host}:{settings.port}")
+    logger.info(
+        f"Starting {settings.app_name} FastAPI server on {settings.host}:{settings.port}"
+    )
     logger.info(f"Debug mode: {settings.debug}")
     logger.info(f"OpenAI Model: {settings.openai_model}")
     if settings.openai_base_url:
@@ -155,7 +160,7 @@ def main():
         host=settings.host,
         port=settings.port,
         reload=settings.debug,
-        log_level=settings.log_level.lower()
+        log_level=settings.log_level.lower(),
     )
 
 

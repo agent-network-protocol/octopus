@@ -8,7 +8,7 @@ objects (FastAPI Request/Response) to the SDK that is framework-agnostic.
 from __future__ import annotations
 
 import logging
-from typing import Callable, Dict, Optional
+from collections.abc import Callable
 
 from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
@@ -38,12 +38,12 @@ EXEMPT_PATHS = [
 ]
 
 
-def _read_text_file(path: Optional[str]) -> Optional[str]:
+def _read_text_file(path: str | None) -> str | None:
     """Read a text file, returning its content or None when not available."""
     if not path:
         return None
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return f.read()
     except Exception as exc:
         logger.error("Failed to read file %s: %s", path, exc)
@@ -71,7 +71,7 @@ def _get_and_validate_domain(request: Request) -> str:
     return domain
 
 
-async def verify_auth_header(request: Request) -> Dict:
+async def verify_auth_header(request: Request) -> dict:
     """Verify authentication header and return authenticated user data.
 
     Raises HTTPException if authentication fails.
@@ -87,7 +87,7 @@ async def verify_auth_header(request: Request) -> Dict:
         raise HTTPException(status_code=exc.status_code, detail=str(exc))
 
 
-async def authenticate_request(request: Request) -> Optional[dict]:
+async def authenticate_request(request: Request) -> dict | None:
     """Authenticate a request and return user data if successful.
 
     Returns None for exempt paths.
@@ -99,7 +99,10 @@ async def authenticate_request(request: Request) -> Optional[dict]:
         # Root path exact match only
         if exempt_path == "/":
             if request.url.path == "/":
-                logger.info("Path %s is exempt from authentication (matched root path)", request.url.path)
+                logger.info(
+                    "Path %s is exempt from authentication (matched root path)",
+                    request.url.path,
+                )
                 return None
         elif request.url.path == exempt_path or (
             exempt_path.endswith("/") and request.url.path.startswith(exempt_path)
@@ -127,7 +130,9 @@ async def auth_middleware(request: Request, call_next: Callable) -> Response:
         if response_auth is not None:
             response = await call_next(request)
             if response_auth.get("token_type", " ") == "bearer":
-                response.headers["authorization"] = "bearer " + response_auth["access_token"]
+                response.headers["authorization"] = (
+                    "bearer " + response_auth["access_token"]
+                )
                 return response
             else:
                 response.headers["authorization"] = headers.get("authorization", "")
@@ -141,6 +146,6 @@ async def auth_middleware(request: Request, call_next: Callable) -> Response:
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     except Exception as exc:
         logger.error("Unexpected error in auth middleware: %s", exc)
-        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
-
-
+        return JSONResponse(
+            status_code=500, content={"detail": "Internal server error"}
+        )

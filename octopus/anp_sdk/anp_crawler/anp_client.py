@@ -6,10 +6,11 @@ It reuses the authentication capabilities from the existing ANPTool.
 """
 
 import logging
-from typing import Dict, Any, Optional
-import aiohttp
-from pathlib import Path
 import sys
+from pathlib import Path
+from typing import Any
+
+import aiohttp
 
 # Import configuration and utilities from the project structure
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -22,19 +23,15 @@ logger = logging.getLogger(__name__)
 class ANPClient:
     """
     HTTP client for ANP protocol with DID authentication.
-    
+
     This class provides HTTP request functionality while reusing the DID authentication
     mechanism from the existing ANPTool implementation.
     """
-    
-    def __init__(
-        self,
-        did_document_path: str,
-        private_key_path: str
-    ):
+
+    def __init__(self, did_document_path: str, private_key_path: str):
         """
         Initialize ANP client with DID authentication.
-        
+
         Args:
             did_document_path: Path to DID document file
             private_key_path: Path to private key file
@@ -42,16 +39,16 @@ class ANPClient:
         self.did_document_path = did_document_path
         self.private_key_path = private_key_path
         self.auth_client = None
-        
+
         # Initialize DID authentication client
         self._initialize_auth_client()
-    
+
     def _initialize_auth_client(self):
         """Initialize DID authentication client."""
         # Check if paths are empty and raise exception if they are
         if not self.did_document_path or self.did_document_path.strip() == "":
             raise ValueError("DID document path cannot be empty")
-        
+
         if not self.private_key_path or self.private_key_path.strip() == "":
             raise ValueError("Private key path cannot be empty")
 
@@ -62,32 +59,32 @@ class ANPClient:
 
         try:
             self.auth_client = DIDWbaAuthHeader(
-                did_document_path=self.did_document_path, 
-                private_key_path=self.private_key_path
+                did_document_path=self.did_document_path,
+                private_key_path=self.private_key_path,
             )
             logger.info("DID authentication client initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize DID authentication client: {str(e)}")
             self.auth_client = None
-    
+
     async def fetch_url(
         self,
         url: str,
         method: str = "GET",
-        headers: Optional[Dict[str, str]] = None,
-        params: Optional[Dict[str, Any]] = None,
-        body: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Fetch content from a URL with DID authentication.
-        
+
         Args:
             url: URL to fetch
             method: HTTP method (default: GET)
             headers: Additional HTTP headers
             params: URL query parameters
             body: Request body for POST/PUT requests
-            
+
         Returns:
             Dictionary containing:
             {
@@ -172,9 +169,9 @@ class ANPClient:
                     "url": url,
                     "text": "",
                     "content_type": "",
-                    "encoding": "utf-8"
+                    "encoding": "utf-8",
                 }
-    
+
     async def _process_response(self, response, url):
         """Process HTTP response and return standardized result."""
         # If authentication is successful, update the token
@@ -202,7 +199,7 @@ class ANPClient:
             "url": str(url),
             "text": text,
             "content_type": content_type,
-            "encoding": encoding
+            "encoding": encoding,
         }
 
         # Add error information if request failed
@@ -210,15 +207,15 @@ class ANPClient:
             result["error"] = f"HTTP {response.status}: {response.reason}"
 
         return result
-    
-    async def get_content_info(self, url: str) -> Dict[str, Any]:
+
+    async def get_content_info(self, url: str) -> dict[str, Any]:
         """
         Get basic content information without downloading the full content.
         Uses HEAD request to get metadata.
-        
+
         Args:
             url: URL to check
-            
+
         Returns:
             Dictionary containing content metadata
         """
@@ -229,13 +226,15 @@ class ANPClient:
                 async with session.head(url) as response:
                     content_type = response.headers.get("Content-Type", "")
                     content_length = response.headers.get("Content-Length", "0")
-                    
+
                     return {
                         "success": True,
                         "url": url,
                         "content_type": content_type,
-                        "content_length": int(content_length) if content_length.isdigit() else 0,
-                        "status_code": response.status
+                        "content_length": int(content_length)
+                        if content_length.isdigit()
+                        else 0,
+                        "status_code": response.status,
                     }
         except Exception as e:
             logger.error(f"Failed to get content info for {url}: {str(e)}")
@@ -245,5 +244,5 @@ class ANPClient:
                 "error": str(e),
                 "content_type": "",
                 "content_length": 0,
-                "status_code": 500
+                "status_code": 500,
             }
