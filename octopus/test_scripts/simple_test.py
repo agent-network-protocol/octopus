@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-简单的测试脚本，验证ad_router.py的功能
+Simple test script to verify ad_router.py functionality
 """
 
 import json
@@ -9,9 +9,9 @@ import sys
 
 
 def run_curl_test(url, description):
-    """使用curl进行测试，绕过Python的代理问题"""
+    """Use curl for testing, bypassing Python proxy issues"""
     print(f"\n{'='*60}")
-    print(f"测试: {description}")
+    print(f"Test: {description}")
     print(f"URL: {url}")
     print(f"{'='*60}")
 

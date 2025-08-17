@@ -384,10 +384,17 @@ class MessageAgent(BaseAgent):
 
             settings = get_settings()
 
+            # Ensure did_document_path and private_key_path are not None
+            if not settings.did_document_path or not settings.did_private_key_path:
+                raise ValueError(
+                    "DID document path and private key path must be set in settings."
+                )
+
             self._anp_crawler = ANPCrawler(
                 did_document_path=settings.did_document_path,
                 private_key_path=settings.did_private_key_path,
                 cache_enabled=True,
+                gateway_url=f"http://{settings.host}:{settings.anp_gateway_http_port}",
             )
 
         return self._anp_crawler

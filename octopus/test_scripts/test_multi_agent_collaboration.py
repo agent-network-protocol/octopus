@@ -5,7 +5,6 @@
 """
 
 import asyncio
-import logging
 import sys
 import uuid
 from datetime import datetime
@@ -17,15 +16,14 @@ from octopus.agents.message.message_agent import MessageAgent
 from octopus.config.settings import get_settings
 from octopus.master_agent import MasterAgent
 from octopus.router.agents_router import router
-from octopus.utils.log_base import setup_enhanced_logging
+from octopus.utils.log_base import get_logger
 
 
 async def test_multi_agent_collaboration():
     """测试多智能体协作流程"""
 
-    # 设置日志
-    setup_enhanced_logging()
-    logger = logging.getLogger(__name__)
+    # 获取 logger - 日志系统自动初始化
+    logger = get_logger(__name__)
 
     try:
         # 获取配置

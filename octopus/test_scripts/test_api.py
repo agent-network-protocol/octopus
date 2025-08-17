@@ -9,10 +9,10 @@ import logging
 import httpx
 
 from octopus.config.settings import get_settings
-from octopus.utils.log_base import setup_enhanced_logging
+from octopus.utils.log_base import get_logger
 
-# Initialize logging
-setup_enhanced_logging()
+# Get logger - logging is automatically initialized
+logger = get_logger(__name__)
 logger = logging.getLogger(__name__)
 
 # Get settings
@@ -48,7 +48,7 @@ async def test_agent_description():
                         description = interface.get("schema", {}).get(
                             "description", "No description"
                         )
-                        logger.info(f"  {i+1}. {method}: {description}")
+                        logger.info(f"  {i + 1}. {method}: {description}")
 
                 return True
             else:

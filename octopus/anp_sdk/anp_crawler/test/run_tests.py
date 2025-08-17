@@ -14,7 +14,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from test_anp_crawler import TestANPCrawler, TestANPDocumentParser, TestANPInterface
 
-from octopus.utils.log_base import setup_enhanced_logging
+from octopus.utils.log_base import get_logger, set_default_log_level
 
 
 def main():
@@ -25,8 +25,9 @@ def main():
     print("Testing anp_crawler.py and related modules...")
     print()
 
-    # Setup logging
-    setup_enhanced_logging(level="INFO")
+    # Set log level and get logger
+    set_default_log_level(logging.INFO)
+    get_logger(__name__)
 
     try:
         # Create test loader

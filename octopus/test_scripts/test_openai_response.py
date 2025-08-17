@@ -7,10 +7,10 @@ import json
 
 from octopus.agents.text_processor_agent import TextProcessorAgent
 from octopus.master_agent import MasterAgent
-from octopus.utils.log_base import setup_enhanced_logging
+from octopus.utils.log_base import get_logger
 
-# Setup logging
-logger = setup_enhanced_logging()
+# Get logger - logging is automatically initialized
+logger = get_logger(__name__)
 
 
 def main():

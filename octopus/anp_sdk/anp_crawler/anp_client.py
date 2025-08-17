@@ -17,6 +17,8 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from agent_connect.authentication import DIDWbaAuthHeader
 
+from octopus.config.settings import get_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,16 +30,26 @@ class ANPClient:
     mechanism from the existing ANPTool implementation.
     """
 
-    def __init__(self, did_document_path: str, private_key_path: str):
+    def __init__(
+        self,
+        did_document_path: str,
+        private_key_path: str,
+        gateway_url: str | None = None,
+    ):
         """
         Initialize ANP client with DID authentication.
 
         Args:
             did_document_path: Path to DID document file
             private_key_path: Path to private key file
+            gateway_url: ANP Gateway HTTP endpoint URL (uses settings default if None)
         """
+        if gateway_url is None:
+            settings = get_settings()
+            gateway_url = f"http://{settings.host}:{settings.anp_gateway_http_port}"
         self.did_document_path = did_document_path
         self.private_key_path = private_key_path
+        self.gateway_url = gateway_url.rstrip("/")
         self.auth_client = None
 
         # Initialize DID authentication client
@@ -101,11 +113,26 @@ class ANPClient:
         if params is None:
             params = {}
 
-        logger.info(f"ANP request: {method} {url}")
+        # Parse original URL to get host and path
+        from urllib.parse import urlparse
+
+        parsed_url = urlparse(url)
+        original_host = parsed_url.netloc
+        original_path = parsed_url.path
+
+        # Route through ANP Gateway
+        gateway_url = f"{self.gateway_url}{original_path}"
+        if parsed_url.query:
+            gateway_url += f"?{parsed_url.query}"
+
+        logger.info(f"ANP request: {method} {gateway_url} (original: {url})")
 
         # Add basic request headers
         if "Content-Type" not in headers and method in ["POST", "PUT", "PATCH"]:
             headers["Content-Type"] = "application/json"
+
+        # Set Host header for Gateway routing
+        headers["Host"] = original_host
 
         # Add DID authentication
         if self.auth_client:
@@ -118,9 +145,9 @@ class ANPClient:
         # Set reasonable timeout for requests
         timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=10)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            # Prepare request parameters
+            # Prepare request parameters (use gateway_url instead of original url)
             request_kwargs = {
-                "url": url,
+                "url": gateway_url,
                 "headers": headers,
                 "params": params,
             }

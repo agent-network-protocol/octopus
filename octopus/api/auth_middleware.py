@@ -58,8 +58,8 @@ _verifier = DidWbaVerifier(
         jwt_public_key=_read_text_file(_settings.jwt_public_key_path),
         jwt_algorithm=_settings.jwt_algorithm or "RS256",
         access_token_expire_minutes=_settings.access_token_expire_minutes or 60,
-        nonce_expiration_minutes=_settings.nonce_expiration_minutes,
-        timestamp_expiration_minutes=_settings.timestamp_expiration_minutes,
+        nonce_expiration_minutes=_settings.auth_nonce_expiry_minutes,
+        timestamp_expiration_minutes=_settings.auth_timestamp_expiry_minutes,
     )
 )
 

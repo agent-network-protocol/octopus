@@ -3,13 +3,20 @@ import logging.handlers
 import os
 import sys
 
+import structlog
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
+# Global initialization state
+_logging_initialized = False
+_default_log_level = logging.INFO
+
 
 class ColoredFormatter(logging.Formatter):
+    """Custom colored formatter for console output."""
+
     COLORS = {
         "DEBUG": "\033[94m",  # Blue
         "INFO": "\033[92m",  # Green
@@ -26,193 +33,233 @@ class ColoredFormatter(logging.Formatter):
         return color + message + self.COLORS["RESET"]
 
 
-def get_project_name():
-    """
-    Extract project name from the log file path or use the directory name as fallback.
-    Returns:
-        str: Project name
-    """
-    # Try to get from environment variable first
-    log_file = os.getenv("LOG_FILE_PATH", "")
-    if log_file:
-        # Extract project name from log file path
-        base_name = os.path.basename(log_file)
-        project_name = base_name.split(".")[0]  # Remove extension
-        if project_name:
-            return project_name
-
-    # Fallback: use the name of the project directory
-    project_dir = os.path.basename(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    )
-    return project_dir
-
-
 def setup_logging(
-    level=logging.INFO, log_file=None, propagate=False, include_location=True
-):
-    """Set up logging with colored console output and file output.
-
-    Args:
-        level: The logging level, default is INFO
-        log_file: The log file path, default is None (auto-generated)
-        propagate: Whether to propagate logs to parent handlers, default is False
-        include_location: Whether to include filename and line number, default is True
+    level: int = logging.INFO,
+    log_file: str | None = None,
+    include_location: bool = True,
+    enable_console_colors: bool = True,
+    force_reconfigure: bool = False,
+) -> None:
     """
-    # Create formatters with file and line number information
-    if include_location:
-        log_format = (
-            "[%(asctime)s] %(levelname)-8s %(filename)s:%(lineno)d: %(message)s"
-        )
-    else:
-        log_format = "[%(asctime)s] %(levelname)-8s: %(message)s"
-
-    formatter = logging.Formatter(log_format, "%Y-%m-%d %H:%M:%S")
-
-    # Create a colored formatter for console output
-    try:
-        import colorlog
-
-        if include_location:
-            colored_format = "%(log_color)s[%(asctime)s] %(levelname)-8s %(filename)s:%(lineno)d: %(message)s%(reset)s"
-        else:
-            colored_format = (
-                "%(log_color)s[%(asctime)s] %(levelname)-8s: %(message)s%(reset)s"
-            )
-
-        colored_formatter = colorlog.ColoredFormatter(
-            colored_format,
-            "%Y-%m-%d %H:%M:%S",
-            log_colors={
-                "DEBUG": "cyan",
-                "INFO": "green",
-                "WARNING": "yellow",
-                "ERROR": "red",
-                "CRITICAL": "red,bg_white",
-            },
-        )
-    except ImportError:
-        # If colorlog is not available, use our custom ColoredFormatter
-        colored_formatter = ColoredFormatter(log_format, "%Y-%m-%d %H:%M:%S")
-
-    if log_file is None:
-        # Get log file path, if on a Mac, use the parent path of the current path
-        if sys.platform == "darwin":
-            log_dir = os.path.join(
-                os.path.expanduser("~"), "Library", "Logs", "octopus"
-            )
-        else:
-            log_dir = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), "..", "..", "logs"
-            )
-
-        # Create logs directory if it doesn't exist and set permissions
-        try:
-            if not os.path.exists(log_dir):
-                os.makedirs(log_dir, exist_ok=True)
-
-                # Set directory permissions to 755
-                if sys.platform != "win32":
-                    os.chmod(log_dir, 0o755)
-        except Exception as e:
-            # If creation fails, use a fallback log directory
-            # Use a basic logger since we're in the logging setup itself
-            basic_logger = logging.getLogger("setup")
-            basic_logger.warning(f"Error creating log directory {log_dir}: {e}")
-            log_dir = os.path.join(os.path.expanduser("~"), "logs")
-            os.makedirs(log_dir, exist_ok=True)
-
-        # Generate log filename (with date)
-        log_file = os.path.join(log_dir, "octopus.log")
-
-    # Get root logger
-    logger = logging.getLogger()
-    logger.setLevel(level)
-
-    # Clear existing handlers
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
-
-    # Configure colored console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(level)
-    console_handler.setFormatter(colored_formatter)
-    logger.addHandler(console_handler)
-
-    # Configure file handler with the same format (but without color)
-    try:
-        file_handler = logging.FileHandler(log_file, encoding="utf-8")
-        file_handler.setLevel(level)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-        logger.info(f"Logging to file: {log_file}")
-    except Exception as e:
-        logger.error(f"Failed to set up file logging to {log_file}: {e}")
-
-    # Prevent log messages from propagating to root logger
-    if not propagate:
-        logger.propagate = False
-
-    return logger
-
-
-def configure_all_loggers(level=logging.INFO, include_location=True):
-    """Configure all existing and future loggers to use the same format with file and line information.
-
-    Args:
-        level: The logging level to apply to all loggers
-        include_location: Whether to include filename and line number
-    """
-    # Set up the root logger first
-    setup_logging(level=level, include_location=include_location)
-
-    # Get all existing loggers and configure them
-    existing_loggers = [
-        logging.getLogger(name) for name in logging.root.manager.loggerDict
-    ]
-
-    for logger in existing_loggers:
-        logger.setLevel(level)
-        # Remove existing handlers to avoid duplication
-        for handler in logger.handlers[:]:
-            logger.removeHandler(handler)
-        # Let the root logger handle all messages
-        logger.propagate = True
-
-    # Configure specific third-party loggers if needed
-    third_party_loggers = [
-        "httpx",
-        "httpcore",
-        "openai",
-        "aiohttp",
-        "urllib3",
-        "requests",
-    ]
-
-    for logger_name in third_party_loggers:
-        logger = logging.getLogger(logger_name)
-        logger.setLevel(level)
-        logger.propagate = True
-
-
-def set_log_color_level(level=logging.INFO, include_location=True, configure_all=True):
-    """Set up logging with optional file/line information and global configuration.
+    Configure structured logging for Octopus.
 
     Args:
         level: The logging level
+        log_file: The log file path, default is None (auto-generated)
         include_location: Whether to include filename and line number
-        configure_all: Whether to configure all existing loggers
+        enable_console_colors: Whether to enable colored console output
+        force_reconfigure: Whether to force reconfiguration even if already configured
     """
-    if configure_all:
-        configure_all_loggers(level=level, include_location=include_location)
+    # Configure standard library logging
+    root_logger = logging.getLogger()
+
+    # Check if already configured
+    if not force_reconfigure and root_logger.handlers:
+        # Already configured, just update level if needed
+        root_logger.setLevel(level)
+        return
+
+    root_logger.setLevel(level)
+
+    # Remove existing handlers only if force_reconfigure is True
+    if force_reconfigure:
+        for handler in root_logger.handlers[:]:
+            root_logger.removeHandler(handler)
+
+    # Get log file path
+    if log_file is None:
+        # Get the project root (octopus/ directory)
+        project_root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        log_dir = os.path.join(project_root, "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "octopus.log")
+
+    # Configure structlog processors for console output
+    console_processors = [
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="ISO"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+    ]
+
+    if include_location:
+        console_processors.append(
+            structlog.processors.CallsiteParameterAdder(
+                parameters=[
+                    structlog.processors.CallsiteParameter.FILENAME,
+                    structlog.processors.CallsiteParameter.LINENO,
+                ]
+            )
+        )
+
+    # Add console renderer
+    console_processors.append(structlog.dev.ConsoleRenderer(colors=False))
+
+    # Configure structlog for console output
+    structlog.configure(
+        processors=console_processors,
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,  # type: ignore[arg-type]
+        cache_logger_on_first_use=True,
+    )
+
+    # Add console handler with color support
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(level)
+
+    if enable_console_colors:
+        console_handler.setFormatter(ColoredFormatter("%(message)s"))
     else:
-        setup_logging(level=level, include_location=include_location)
+        console_handler.setFormatter(logging.Formatter("%(message)s"))
 
-    return logging.getLogger()
+    root_logger.addHandler(console_handler)
+
+    # Add file handler with clean format (no color codes)
+    try:
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setLevel(level)
+
+        # Create a clean formatter for file output that removes color codes
+        class CleanFormatter(logging.Formatter):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                # Pre-compile regex pattern to avoid import during shutdown
+                import re
+                self.ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+            
+            def format(self, record):
+                # Remove ANSI color codes from the message
+                if hasattr(record, "msg"):
+                    record.msg = self.ansi_escape.sub("", str(record.msg))
+                return super().format(record)
+
+        file_handler.setFormatter(CleanFormatter("%(message)s"))
+        root_logger.addHandler(file_handler)
+
+        logger = structlog.get_logger("setup")
+        logger.info("Logging to file", log_file=log_file)
+
+    except Exception as e:
+        logger = structlog.get_logger("setup")
+        logger.error("Failed to set up file logging", log_file=log_file, error=str(e))
 
 
-# For backward compatibility, keep the original function but with enhanced features
-def setup_enhanced_logging(level=logging.DEBUG):
-    """Enhanced logging setup with file and line number information for all loggers."""
-    return set_log_color_level(level=level, include_location=True, configure_all=True)
+def setup_enhanced_logging(
+    level: str | int = "INFO",
+    log_file: str | None = None,
+    include_location: bool = True,
+    enable_console_colors: bool = True,
+    force_reconfigure: bool = False,
+) -> None:
+    """
+    Enhanced logging setup function for main entry modules.
+
+    This function is designed to be used in main entry modules as specified in workspace rules.
+    It provides a simplified interface for setting up logging with sensible defaults.
+
+    Args:
+        level: The logging level as string or int
+        log_file: The log file path, default is None (auto-generated)
+        include_location: Whether to include filename and line number
+        enable_console_colors: Whether to enable colored console output
+        force_reconfigure: Whether to force reconfiguration even if already configured
+    """
+    # Convert string level to int if needed
+    if isinstance(level, str):
+        level = getattr(logging, level.upper())
+
+    # Call the existing setup_logging function
+    setup_logging(
+        level=level,
+        log_file=log_file,
+        include_location=include_location,
+        enable_console_colors=enable_console_colors,
+        force_reconfigure=force_reconfigure,
+    )
+
+
+def _ensure_logging_initialized(level: int | None = None) -> None:
+    """Ensure logging is initialized only once."""
+    global _logging_initialized, _default_log_level
+
+    if not _logging_initialized:
+        init_level = level if level is not None else _default_log_level
+        setup_logging(level=init_level, include_location=True)
+        _logging_initialized = True
+
+
+def set_default_log_level(level: int) -> None:
+    """Set the default log level for automatic initialization."""
+    global _default_log_level
+    _default_log_level = level
+
+
+def get_logger(name: str, level: int | None = None) -> structlog.BoundLogger:
+    """
+    Get a structlog logger with the specified name.
+
+    Args:
+        name: The name of the logger
+        level: Optional logging level for initialization
+
+    Returns:
+        A structlog BoundLogger instance
+    """
+    _ensure_logging_initialized(level)
+    return structlog.get_logger(name)
+
+
+class LoggerMixin:
+    """Mixin class to add logging capabilities."""
+
+    @property
+    def logger(self) -> structlog.BoundLogger:
+        """Get logger for this class."""
+        if not hasattr(self, "_logger"):
+            self._logger = get_logger(self.__class__.__module__)
+        return self._logger
+
+
+# Pre-configured loggers for common components
+protocol_logger = get_logger("octopus.protocol")
+gateway_logger = get_logger("octopus.gateway")
+receiver_logger = get_logger("octopus.receiver")
+message_logger = get_logger("octopus.message")
+agent_logger = get_logger("octopus.agent")
+api_logger = get_logger("octopus.api")
+common_logger = get_logger("octopus.common")
+
+# Auto-initialize logging when this module is imported
+_ensure_logging_initialized()
+
+
+# Usage Examples:
+#
+# 1. Basic usage:
+#    from octopus.utils.log_base import get_logger
+#    logger = get_logger(__name__)
+#    logger.info("Processing request", request_id="123", method="GET")
+#
+# 2. Using LoggerMixin:
+#    from octopus.utils.log_base import LoggerMixin
+#    class MyClass(LoggerMixin):
+#        def my_method(self):
+#            self.logger.info("Method called", param="value")
+#
+# 3. Using pre-configured loggers:
+#    from octopus.utils.log_base import message_logger
+#    message_logger.error("Failed to send message", error="timeout")
+#
+# 4. Exception logging:
+#    try:
+#        # some operation
+#        pass
+#    except Exception as e:
+#        logger.exception("Operation failed", operation="data_processing")

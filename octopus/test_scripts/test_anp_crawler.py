@@ -10,7 +10,6 @@ from pathlib import Path
 
 from octopus.anp_sdk.anp_crawler.anp_crawler import ANPCrawler
 from octopus.config.settings import get_settings
-from octopus.utils.log_base import setup_enhanced_logging
 
 
 class ANPCrawlerTest:
@@ -49,10 +48,10 @@ class ANPCrawlerTest:
                         url, timeout=aiohttp.ClientTimeout(total=5)
                     ) as response:
                         if response.status == 200:
-                            self.logger.info(f"Server is ready after {i+1} seconds")
+                            self.logger.info(f"Server is ready after {i + 1} seconds")
                             return True
             except Exception as e:
-                self.logger.debug(f"Server not ready yet (attempt {i+1}): {e}")
+                self.logger.debug(f"Server not ready yet (attempt {i + 1}): {e}")
 
             await asyncio.sleep(1)
 
@@ -263,8 +262,11 @@ async def run_anp_crawler_integration_test():
 
 async def main():
     """Main function for standalone testing."""
-    # Setup logging
-    setup_enhanced_logging(level=logging.INFO)
+    # Set log level and get logger
+    from octopus.utils.log_base import get_logger, set_default_log_level
+
+    set_default_log_level(logging.INFO)
+    get_logger(__name__)
 
     # Run the test
     success = await run_anp_crawler_test(wait_for_server=True)

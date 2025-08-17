@@ -31,7 +31,7 @@ class MasterAgent(BaseAgent):
     """
 
     def __init__(
-        self, api_key: str = None, model: str = None, base_url: str = None, **kwargs
+        self, api_key: str|None = None, model: str|None = None, base_url: str|None = None, **kwargs
     ):
         """
         Initialize the Master Agent.
@@ -65,16 +65,14 @@ class MasterAgent(BaseAgent):
 
         self.model = model or settings.openai_model
         self.base_url = base_url or settings.openai_base_url
-        self.deployment = settings.openai_deployment
-        self.api_version = settings.openai_api_version
         self.temperature = settings.openai_temperature
         self.max_tokens = settings.openai_max_tokens
 
         # Create client based on provider
         self._initialize_client()
 
-        # For Azure OpenAI, use deployment name if available
-        self.effective_model = self.deployment if self.deployment else self.model
+        # Use the configured model directly
+        self.effective_model = self.model
 
         self.logger.info(
             f"MasterAgent initialized with provider: {self.model_provider}, model: {self.effective_model}"
@@ -83,10 +81,7 @@ class MasterAgent(BaseAgent):
             self.logger.info(
                 f"Using {self.model_provider.upper()} base URL: {self.base_url}"
             )
-        if self.api_version:
-            self.logger.info(f"Using API version: {self.api_version}")
-        if self.deployment:
-            self.logger.info(f"Using deployment: {self.deployment}")
+
         self.logger.info(
             f"{self.model_provider.upper()} settings - Temperature: {self.temperature}, Max tokens: {self.max_tokens}"
         )
@@ -97,19 +92,9 @@ class MasterAgent(BaseAgent):
             # Create OpenAI client with proper Azure OpenAI configuration
             client_kwargs = {"api_key": self.api_key}
 
-            # For Azure OpenAI, construct the full base URL with deployment
-            if self.base_url and self.deployment:
-                # Azure OpenAI format: https://{resource}.openai.azure.com/openai/deployments/{deployment}/
-                base_url = self.base_url.rstrip("/")
-                if not base_url.endswith("/openai"):
-                    base_url = base_url + "/openai"
-                full_url = f"{base_url}/deployments/{self.deployment}/"
-                client_kwargs["base_url"] = full_url
-            elif self.base_url:
+            # Use base_url directly without complex Azure URL construction
+            if self.base_url:
                 client_kwargs["base_url"] = self.base_url
-
-            if self.api_version:
-                client_kwargs["default_query"] = {"api-version": self.api_version}
 
             self.client = OpenAI(**client_kwargs)
             self.async_client = AsyncOpenAI(**client_kwargs)

@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "octopus",
+			"path": "../.."
+		},
+		{
+			"name": "anp-proxy",
+			"path": "../../../anp-proxy"
+		}
+	],
+	"settings": {}
+}

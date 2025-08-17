@@ -9,6 +9,8 @@ import logging
 from typing import Any
 from urllib.parse import urlparse, urlunparse
 
+from octopus.config.settings import get_settings
+
 from .anp_client import ANPClient
 from .anp_interface import ANPInterface, ANPInterfaceConverter
 from .anp_parser import ANPDocumentParser
@@ -25,7 +27,11 @@ class ANPCrawler:
     """
 
     def __init__(
-        self, did_document_path: str, private_key_path: str, cache_enabled: bool = True
+        self,
+        did_document_path: str,
+        private_key_path: str,
+        cache_enabled: bool = True,
+        gateway_url: str | None = None,
     ):
         """
         Initialize ANP session with DID authentication.
@@ -34,10 +40,16 @@ class ANPCrawler:
             did_document_path: Path to DID document file
             private_key_path: Path to private key file
             cache_enabled: Whether to enable URL caching
+            gateway_url: ANP Gateway HTTP endpoint URL (uses settings default if None)
         """
+        if gateway_url is None:
+            settings = get_settings()
+            gateway_url = f"http://{settings.host}:{settings.anp_gateway_http_port}"
+
         self.did_document_path = did_document_path
         self.private_key_path = private_key_path
         self.cache_enabled = cache_enabled
+        self.gateway_url = gateway_url
 
         # Initialize components
         self._client = None  # ANPClient instance
@@ -65,6 +77,7 @@ class ANPCrawler:
         self._client = ANPClient(
             did_document_path=self.did_document_path,
             private_key_path=self.private_key_path,
+            gateway_url=self.gateway_url,
         )
 
         # Initialize document parser

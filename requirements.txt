@@ -521,6 +521,31 @@ multidict==6.6.3 \
     # via
     #   aiohttp
     #   yarl
+mypy==1.16.1 \
+    --hash=sha256:051e1677689c9d9578b9c7f4d206d763f9bbd95723cd1416fad50db49d52f359 \
+    --hash=sha256:08e850ea22adc4d8a4014651575567b0318ede51e8e9fe7a68f25391af699507 \
+    --hash=sha256:0a7cfb0fe29fe5a9841b7c8ee6dffb52382c45acdf68f032145b75620acfbd6f \
+    --hash=sha256:0ab5eca37b50188163fa7c1b73c685ac66c4e9bdee4a85c9adac0e91d8895e15 \
+    --hash=sha256:1f0435cf920e287ff68af3d10a118a73f212deb2ce087619eb4e648116d1fe9b \
+    --hash=sha256:211287e98e05352a2e1d4e8759c5490925a7c784ddc84207f4714822f8cf99b6 \
+    --hash=sha256:22d76a63a42619bfb90122889b903519149879ddbf2ba4251834727944c8baca \
+    --hash=sha256:2c7ce0662b6b9dc8f4ed86eb7a5d505ee3298c04b40ec13b30e572c0e5ae17c4 \
+    --hash=sha256:44e7acddb3c48bd2713994d098729494117803616e116032af192871aed80b79 \
+    --hash=sha256:472e4e4c100062488ec643f6162dd0d5208e33e2f34544e1fc931372e806c0cc \
+    --hash=sha256:4f58ac32771341e38a853c5d0ec0dfe27e18e27da9cdb8bbc882d2249c71a3ee \
+    --hash=sha256:5fc2ac4027d0ef28d6ba69a0343737a23c4d1b83672bf38d1fe237bdc0643b37 \
+    --hash=sha256:66df38405fd8466ce3517eda1f6640611a0b8e70895e2a9462d1d4323c5eb4b9 \
+    --hash=sha256:6bd00a0a2094841c5e47e7374bb42b83d64c527a502e3334e1173a0c24437bab \
+    --hash=sha256:87ff2c13d58bdc4bbe7dc0dedfe622c0f04e2cb2a492269f3b418df2de05c536 \
+    --hash=sha256:af4792433f09575d9eeca5c63d7d90ca4aeceda9d8355e136f80f8967639183d \
+    --hash=sha256:d5d2309511cc56c021b4b4e462907c2b12f669b2dbeb68300110ec27723971be \
+    --hash=sha256:ddc91eb318c8751c69ddb200a5937f1232ee8efb4e64e9f4bc475a33719de438 \
+    --hash=sha256:dedb6229b2c9086247e21a83c309754b9058b438704ad2f6807f0d8227f6ebdd \
+    --hash=sha256:ea16e2a7d2714277e349e24d19a782a663a34ed60864006e8585db08f8ad1782
+mypy-extensions==1.1.0 \
+    --hash=sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505 \
+    --hash=sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558
+    # via mypy
 nodeenv==1.9.1 \
     --hash=sha256:6ec12890a2dab7946721edbfbcd91f3319c6ccc9aec47be7c7e6b7011ee6645f \
     --hash=sha256:ba11c9782d29c27c70ffbdda2d7415098754709be8a7056d79a737cd901155c9
@@ -529,6 +554,10 @@ openai==1.93.0 \
     --hash=sha256:3d746fe5498f0dd72e0d9ab706f26c91c0f646bf7459e5629af8ba7c9dbdf090 \
     --hash=sha256:988f31ade95e1ff0585af11cc5a64510225e4f5cd392698c675d0a9265b8e337
     # via octopus
+pathspec==0.12.1 \
+    --hash=sha256:a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08 \
+    --hash=sha256:a482d51503a1ab33b1c67a6c3813a26953dbdc71c31dacaef9a838c4e29f5712
+    # via mypy
 platformdirs==4.3.8 \
     --hash=sha256:3d512d96e16bcb959a814c9f348431070822a6496326a4be0911c40b5a74c2bc \
     --hash=sha256:ff7059bb7eb1179e2685604f4aaf157cfd9535242bd23742eadc3c13542139b4
@@ -682,6 +711,10 @@ pydantic-settings==2.10.1 \
 pyjwt==2.10.1 \
     --hash=sha256:3cc5772eb20009233caf06e9d8a0577824723b44e6648ee0a2aedb6cf9381953 \
     --hash=sha256:dcdd193e30abefd5debf142f9adfcdd2b58004e644f25406ffaebd50bd98dacb
+    # via octopus
+pymysql==1.1.1 \
+    --hash=sha256:4de15da4c61dc132f4fb9ab763063e693d521a80fd0e87943b9a453dd4c19d6c \
+    --hash=sha256:e127611aaf2b417403c60bf4dc570124aeb4a57f5f37b8e95ae399a42f904cd0
     # via octopus
 python-dotenv==1.1.1 \
     --hash=sha256:31f23644fe2602f88ff55e1f5c79ba497e01224ee7737937930c448e4d0e24dc \
@@ -853,6 +886,10 @@ starlette==0.46.2 \
     --hash=sha256:595633ce89f8ffa71a015caed34a5b2dc1c0cdb3f0f1fbd1e69339cf2abeec35 \
     --hash=sha256:7f7361f34eed179294600af672f565727419830b54b7b084efe44bb82d2fccd5
     # via fastapi
+structlog==25.4.0 \
+    --hash=sha256:186cd1b0a8ae762e29417095664adf1d6a31702160a46dacb7796ea82f7409e4 \
+    --hash=sha256:fe809ff5c27e557d14e613f45ca441aabda051d119ee5a0102aaba6ce40eed2c
+    # via octopus
 tqdm==4.67.1 \
     --hash=sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2 \
     --hash=sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2
@@ -864,6 +901,7 @@ typing-extensions==4.14.0 \
     #   aiosignal
     #   anyio
     #   fastapi
+    #   mypy
     #   openai
     #   pydantic
     #   pydantic-core

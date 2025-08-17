@@ -16,15 +16,15 @@ from octopus.config.settings import get_settings
 from octopus.router.agents_router import router as agent_router
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(prefix="/agents")
 
 # Get settings
 settings = get_settings()
 
 # Default domain for agent descriptions
-AGENT_DESCRIPTION_JSON_DOMAIN = f"{settings.host}:{settings.port}"
-DID_DOMAIN = "didhost.cc"
-DID_PATH = "test:public"
+AGENT_DESCRIPTION_JSON_DOMAIN = f"{settings.host}:{settings.anp_gateway_http_port}"
+DID_DOMAIN = settings.did_domain
+DID_PATH = settings.did_path
 
 
 class JSONRPCRequest(BaseModel):
@@ -53,23 +53,33 @@ async def get_agents_description():
     Returns:
         Agent description in ANP format with embedded OpenRPC interface
     """
+    import time
+
+    start_time = time.time()
     try:
         logger.info("🟡 [AD.JSON] Starting agent description generation...")
 
         # Get all registered agents
+        logger.info("🟡 [AD.JSON] Getting agent list...")
+        agents_list_start = time.time()
         agents_list = agent_router.list_agents()
+        agents_list_time = time.time() - agents_list_start
         logger.info(
-            f"🟡 [AD.JSON] Found {len(agents_list)} registered agents: {agents_list}"
+            f"🟡 [AD.JSON] Found {len(agents_list)} registered agents in {agents_list_time:.3f}s: {agents_list}"
         )
 
         if not agents_list:
             raise HTTPException(status_code=500, detail="No agents registered")
 
         # Generate OpenRPC interface for all agents
+        logger.info("🟡 [AD.JSON] Generating OpenRPC interface...")
+        openrpc_start = time.time()
         openrpc_interface = agent_router.generate_openrpc_interface(
             base_url=f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}",
             app_version=settings.app_version,
         )
+        openrpc_time = time.time() - openrpc_start
+        logger.info(f"🟡 [AD.JSON] OpenRPC interface generated in {openrpc_time:.3f}s")
 
         # Create agent description in ANP format
         agent_description = {
@@ -113,7 +123,10 @@ async def get_agents_description():
             f"🟡 [AD.JSON] Generated agent description: {json.dumps(agent_description, ensure_ascii=False, indent=2)}"
         )
 
-        logger.info("🟡 [AD.JSON] Agent description generated successfully")
+        total_time = time.time() - start_time
+        logger.info(
+            f"🟡 [AD.JSON] Agent description generated successfully in {total_time:.3f}s"
+        )
         return JSONResponse(
             content=agent_description, media_type="application/json; charset=utf-8"
         )
@@ -131,7 +144,7 @@ async def get_agents_description():
         )
 
 
-@router.post("/agents/jsonrpc")
+@router.post("/jsonrpc")
 async def handle_jsonrpc_call(request: Request):
     """
     Handle JSON-RPC calls to agent methods with manual parsing for better compatibility.
@@ -227,7 +240,7 @@ async def handle_jsonrpc_call(request: Request):
         )
 
 
-@router.get("/agents/{agent_name}/info")
+@router.get("/{agent_name}/info")
 async def get_agent_info(agent_name: str):
     """
     Get detailed information about a specific agent.

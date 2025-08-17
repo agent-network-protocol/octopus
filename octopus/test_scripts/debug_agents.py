@@ -6,10 +6,10 @@ Debug script to check agent registration and router state.
 from octopus.agents.text_processor_agent import TextProcessorAgent
 from octopus.master_agent import MasterAgent
 from octopus.router.agents_router import router
-from octopus.utils.log_base import setup_enhanced_logging
+from octopus.utils.log_base import get_logger
 
-# Setup logging
-logger = setup_enhanced_logging()
+# Get logger - logging is automatically initialized
+logger = get_logger(__name__)
 
 
 def main():
