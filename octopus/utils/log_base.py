@@ -3,6 +3,7 @@ import logging.handlers
 import os
 import sys
 
+
 import structlog
 from dotenv import load_dotenv
 
@@ -30,7 +31,7 @@ class ColoredFormatter(logging.Formatter):
         levelname = record.levelname
         message = super().format(record)
         color = self.COLORS.get(levelname, self.COLORS["RESET"])
-        return color + message + self.COLORS["RESET"]
+        return color + message + self.COLORS["RESET"] + "\n"
 
 
 def setup_logging(
@@ -42,7 +43,6 @@ def setup_logging(
 ) -> None:
     """
     Configure structured logging for Octopus.
-
     Args:
         level: The logging level
         log_file: The log file path, default is None (auto-generated)
