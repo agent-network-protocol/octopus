@@ -3,69 +3,86 @@ Agent Description Router for Octopus API.
 Provides agent description information and JSON-RPC interfaces.
 """
 
+import json
 import logging
 from datetime import datetime
-from typing import Dict, Any, Union
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-import json
 
-from octopus.router.agents_router import router as agent_router
 from octopus.config.settings import get_settings
-
+from octopus.router.agents_router import router as agent_router
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(prefix="/agents")
 
 # Get settings
 settings = get_settings()
 
 # Default domain for agent descriptions
-AGENT_DESCRIPTION_JSON_DOMAIN = f"{settings.host}:{settings.port}"
-DID_DOMAIN = "didhost.cc"
-DID_PATH = "test:public"
+AGENT_DESCRIPTION_JSON_DOMAIN = (
+    settings.anp_gateway_http_url or f"{settings.host}:{settings.port}"
+)
+DID_DOMAIN = settings.did_domain
+DID_PATH = settings.did_path
+
 
 class JSONRPCRequest(BaseModel):
     """JSON-RPC request model."""
+
     jsonrpc: str = "2.0"
     method: str
-    params: Dict[str, Any] = {}
-    id: Union[str, int]  # JSON-RPC 2.0 allows string, number, or null for id
+    params: dict[str, Any] = {}
+    id: str | int  # JSON-RPC 2.0 allows string, number, or null for id
 
 
 class JSONRPCResponse(BaseModel):
     """JSON-RPC response model."""
+
     jsonrpc: str = "2.0"
     result: Any = None
-    error: Dict[str, Any] = None
-    id: Union[str, int]  # JSON-RPC 2.0 allows string, number, or null for id
+    error: dict[str, Any] | None = None
+    id: str | int  # JSON-RPC 2.0 allows string, number, or null for id
 
 
 @router.get("/ad.json")
 async def get_agents_description():
     """
     Provide agent description information in ANP format with OpenRPC interfaces.
-    
+
     Returns:
         Agent description in ANP format with embedded OpenRPC interface
     """
+    import time
+
+    start_time = time.time()
     try:
         logger.info("🟡 [AD.JSON] Starting agent description generation...")
-        
+
         # Get all registered agents
+        logger.info("🟡 [AD.JSON] Getting agent list...")
+        agents_list_start = time.time()
         agents_list = agent_router.list_agents()
-        logger.info(f"🟡 [AD.JSON] Found {len(agents_list)} registered agents: {agents_list}")
-        
+        agents_list_time = time.time() - agents_list_start
+        logger.info(
+            f"🟡 [AD.JSON] Found {len(agents_list)} registered agents in {agents_list_time:.3f}s: {agents_list}"
+        )
+
         if not agents_list:
             raise HTTPException(status_code=500, detail="No agents registered")
-        
+
         # Generate OpenRPC interface for all agents
+        logger.info("🟡 [AD.JSON] Generating OpenRPC interface...")
+        openrpc_start = time.time()
         openrpc_interface = agent_router.generate_openrpc_interface(
             base_url=f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}",
-            app_version=settings.app_version
+            app_version=settings.app_version,
         )
-        
+        openrpc_time = time.time() - openrpc_start
+        logger.info(f"🟡 [AD.JSON] OpenRPC interface generated in {openrpc_time:.3f}s")
+
         # Create agent description in ANP format
         agent_description = {
             "protocolType": "ANP",
@@ -77,7 +94,7 @@ async def get_agents_description():
             "owner": {
                 "type": "Organization",
                 "name": "Octopus AI",
-                "url": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}"
+                "url": f"http://{AGENT_DESCRIPTION_JSON_DOMAIN}",
             },
             "description": "A multi-agent system providing intelligent task delegation and natural language processing. The master agent coordinates with specialized sub-agents to handle various tasks including text processing, data analysis, and more.",
             "created": datetime.now().isoformat() + "Z",
@@ -85,7 +102,7 @@ async def get_agents_description():
                 "didwba_sc": {
                     "scheme": "didwba",
                     "in": "header",
-                    "name": "Authorization"
+                    "name": "Authorization",
                 }
             },
             "security": "didwba_sc",
@@ -94,22 +111,28 @@ async def get_agents_description():
                     "type": "StructuredInterface",
                     "protocol": "openrpc",
                     "description": "OpenRPC interface for accessing Octopus multi-agent services.",
-                    "content": openrpc_interface
+                    "content": openrpc_interface,
                 }
-            ]
+            ],
         }
-        
-        logger.info(f"🟡 [AD.JSON] Generated OpenRPC interface with {len(openrpc_interface['methods'])} methods")
-        
-        # Log the full agent description for debugging
-        logger.info(f"🟡 [AD.JSON] Generated agent description: {json.dumps(agent_description, ensure_ascii=False, indent=2)}")
-        
-        logger.info("🟡 [AD.JSON] Agent description generated successfully")
-        return JSONResponse(
-            content=agent_description,
-            media_type="application/json; charset=utf-8"
+
+        logger.info(
+            f"🟡 [AD.JSON] Generated OpenRPC interface with {len(openrpc_interface['methods'])} methods"
         )
-        
+
+        # Log the full agent description for debugging
+        logger.info(
+            f"🟡 [AD.JSON] Generated agent description: {json.dumps(agent_description, ensure_ascii=False, indent=2)}"
+        )
+
+        total_time = time.time() - start_time
+        logger.info(
+            f"🟡 [AD.JSON] Agent description generated successfully in {total_time:.3f}s"
+        )
+        return JSONResponse(
+            content=agent_description, media_type="application/json; charset=utf-8"
+        )
+
     except Exception as e:
         logger.error(f"❌ [AD.JSON] Error generating agent description: {str(e)}")
         error_response = {
@@ -123,27 +146,27 @@ async def get_agents_description():
         )
 
 
-@router.post("/agents/jsonrpc")
+@router.post("/jsonrpc")
 async def handle_jsonrpc_call(request: Request):
     """
     Handle JSON-RPC calls to agent methods with manual parsing for better compatibility.
-    
+
     Args:
         request: Raw HTTP request
-        
+
     Returns:
         JSON-RPC response
     """
     try:
         # Read raw request body
         body = await request.body()
-        body_text = body.decode('utf-8')
+        body_text = body.decode("utf-8")
         logger.info(f"🔵 [JSON-RPC REQUEST] Raw body: {body_text}")
-        
+
         # Log request headers for debugging
         headers = dict(request.headers)
         logger.info(f"🔵 [JSON-RPC REQUEST] Headers: {json.dumps(headers, indent=2)}")
-        
+
         # Manual JSON parsing
         try:
             rpc_data = json.loads(body)
@@ -153,14 +176,11 @@ async def handle_jsonrpc_call(request: Request):
                 status_code=400,
                 content={
                     "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32700,
-                        "message": "Parse error"
-                    },
-                    "id": None
-                }
+                    "error": {"code": -32700, "message": "Parse error"},
+                    "id": None,
+                },
             )
-        
+
         # Validate JSON-RPC format
         if not isinstance(rpc_data, dict):
             logger.error(f"Invalid JSON-RPC format: {type(rpc_data)}")
@@ -168,23 +188,22 @@ async def handle_jsonrpc_call(request: Request):
                 status_code=400,
                 content={
                     "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32600,
-                        "message": "Invalid Request"
-                    },
-                    "id": rpc_data.get("id") if isinstance(rpc_data, dict) else None
-                }
+                    "error": {"code": -32600, "message": "Invalid Request"},
+                    "id": rpc_data.get("id") if isinstance(rpc_data, dict) else None,
+                },
             )
-        
+
         # Extract JSON-RPC fields
         method = rpc_data.get("method")
         params = rpc_data.get("params", {})
         request_id = rpc_data.get("id")
-        
+
         logger.info(f"🔵 [JSON-RPC PARSED] Method: {method}")
-        logger.info(f"🔵 [JSON-RPC PARSED] Params: {json.dumps(params, ensure_ascii=False, indent=2)}")
+        logger.info(
+            f"🔵 [JSON-RPC PARSED] Params: {json.dumps(params, ensure_ascii=False, indent=2)}"
+        )
         logger.info(f"🔵 [JSON-RPC PARSED] ID: {request_id} (type: {type(request_id)})")
-        
+
         if not method:
             logger.error("Missing method in JSON-RPC request")
             return JSONResponse(
@@ -193,56 +212,54 @@ async def handle_jsonrpc_call(request: Request):
                     "jsonrpc": "2.0",
                     "error": {
                         "code": -32600,
-                        "message": "Invalid Request - missing method"
+                        "message": "Invalid Request - missing method",
                     },
-                    "id": request_id
-                }
+                    "id": request_id,
+                },
             )
-        
+
         # Delegate to agent router for handling
         response_dict = agent_router.handle_jsonrpc_call(
-            method=method,
-            params=params,
-            request_id=request_id
+            method=method, params=params, request_id=request_id
         )
-        
-        logger.info(f"🟢 [JSON-RPC RESPONSE] Success: {json.dumps(response_dict, ensure_ascii=False, indent=2)}")
-        
+
+        logger.info(
+            f"🟢 [JSON-RPC RESPONSE] Success: {json.dumps(response_dict, ensure_ascii=False, indent=2)}"
+        )
+
         # Return JSON response
         return JSONResponse(content=response_dict)
-            
+
     except Exception as e:
         logger.error(f"Error handling JSON-RPC request: {str(e)}")
         return JSONResponse(
             status_code=500,
             content={
                 "jsonrpc": "2.0",
-                "error": {
-                    "code": -32603,
-                    "message": "Internal error",
-                    "data": str(e)
-                },
-                "id": None
-            }
+                "error": {"code": -32603, "message": "Internal error", "data": str(e)},
+                "id": None,
+            },
         )
 
 
-@router.get("/agents/{agent_name}/info")
+@router.get("/{agent_name}/info")
 async def get_agent_info(agent_name: str):
     """
     Get detailed information about a specific agent.
-    
+
     Args:
         agent_name: Name of the agent
-        
+
     Returns:
         Agent information including capabilities and methods
     """
     try:
         agent_registration = agent_router.get_agent(agent_name)
         if not agent_registration:
-            raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
-        
+            raise HTTPException(
+                status_code=404, detail=f"Agent '{agent_name}' not found"
+            )
+
         # Build agent info
         agent_info = {
             "name": agent_registration.name,
@@ -251,9 +268,9 @@ async def get_agent_info(agent_name: str):
             "tags": agent_registration.tags,
             "dependencies": agent_registration.dependencies,
             "status": "active" if agent_registration.instance else "not_instantiated",
-            "methods": {}
+            "methods": {},
         }
-        
+
         # Add method information
         for method_name, method_info in agent_registration.methods.items():
             agent_info["methods"][method_name] = {
@@ -261,11 +278,13 @@ async def get_agent_info(agent_name: str):
                 "parameters": method_info.parameters,
                 "returns": method_info.returns,
                 "deprecated": method_info.deprecated,
-                "docstring": method_info.docstring
+                "docstring": method_info.docstring,
             }
-        
-        return JSONResponse(content=agent_info, media_type="application/json; charset=utf-8")
-        
+
+        return JSONResponse(
+            content=agent_info, media_type="application/json; charset=utf-8"
+        )
+
     except HTTPException:
         raise
     except Exception as e:
@@ -277,13 +296,15 @@ async def get_agent_info(agent_name: str):
 async def list_agents():
     """
     List all registered agents.
-    
+
     Returns:
         List of registered agents with basic information
     """
     try:
         agents = agent_router.list_agents()
-        return JSONResponse(content={"agents": agents}, media_type="application/json; charset=utf-8")
+        return JSONResponse(
+            content={"agents": agents}, media_type="application/json; charset=utf-8"
+        )
     except Exception as e:
         logger.error(f"Error listing agents: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")

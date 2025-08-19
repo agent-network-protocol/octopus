@@ -62,7 +62,7 @@
    ```bash
    # 正确格式 (推荐)
    OPENAI_BASE_URL=https://tekan.openai.azure.com/
-   
+
    # 错误格式
    OPENAI_BASE_URL=https://tekan.openai.azure.com/openai/deployments/gpt4o
    ```
@@ -73,4 +73,4 @@
    - 确认 API key 有效
 
 3. **详细配置指南**：
-   请参考 `docs/azure_openai_config.md` 获取完整配置说明。 
+   请参考 `docs/azure_openai_config.md` 获取完整配置说明。

@@ -28,7 +28,7 @@
 
 **暴露的方法** (共3个):
 1. `message.get_message_history` (external) - 获取消息历史
-2. `message.get_statistics` (both) - 获取统计信息  
+2. `message.get_statistics` (both) - 获取统计信息
 3. `message.send_message` (both) - 发送消息
 
 ### 3. 访问级别控制
@@ -86,6 +86,6 @@
 但从架构和实现角度，所有功能都已验证正确！
 
 ---
-*测试时间: 2025-08-04*  
-*测试工具: curl, 直接HTTP请求*  
-*服务器: Octopus on localhost:9527*
+*测试时间: 2025-08-04*
+*测试工具: curl, 直接HTTP请求*
+*服务器: Octopus on localhost:9527 (默认配置)*

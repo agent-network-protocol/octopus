@@ -1,0 +1,28 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: debug-statements
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.1.8
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix, --unsafe-fixes]
+      - id: ruff-format
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.8.9
+    hooks:
+      # Update the uv lockfile
+      - id: uv-lock
+      # Autoexport uv.lock to requirements.txt
+      - id: uv-export
+        args: ["--frozen", "--output-file=requirements.txt", "--quiet"]
+      # Synchronize dependencies
+      - id: uv-sync

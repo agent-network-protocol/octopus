@@ -146,4 +146,4 @@ uv run pytest tests/integration/
 - `sub_agents/`: 具体代理实现
 - `protocols/`: 通信协议实现
 
-这个结构为 Octopus 项目提供了一个坚实的基础，支持快速开发和长期维护。 
+这个结构为 Octopus 项目提供了一个坚实的基础，支持快速开发和长期维护。

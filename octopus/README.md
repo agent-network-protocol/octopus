@@ -126,7 +126,7 @@ from octopus.router.agents_router import register_agent, agent_method
 )
 class MyAgent(BaseAgent):
     """My custom agent implementation."""
-    
+
     def __init__(self):
         super().__init__(
             name="MyAgent",
@@ -148,11 +148,11 @@ class MyAgent(BaseAgent):
 def process_data(self, data: Dict[str, Any], options: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Process input data with given options.
-    
+
     Args:
         data: Input data to process
         options: Optional processing parameters
-        
+
     Returns:
         Processed results
     """
@@ -319,4 +319,4 @@ uv run python octopus/example_usage.py
 - [ ] 智能体热重载
 - [ ] Web UI 界面
 - [ ] 分布式执行
-- [ ] 智能体市场 
+- [ ] 智能体市场

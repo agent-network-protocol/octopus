@@ -51,7 +51,7 @@ ANPInterface有一个接口，可以根据OpenAI api 调用tools的信息，使�
                 "description": "Check-in date in YYYY-MM-DD format"
               },
               "checkOut": {
-                "type": "string", 
+                "type": "string",
                 "format": "date",
                 "description": "Check-out date in YYYY-MM-DD format"
               },
@@ -98,12 +98,3 @@ ANPInterface有一个接口，可以根据OpenAI api 调用tools的信息，使�
 ## 从OpenAI tools的调用，到找到anp_interface，并且触发http请求的发送，然后返回http调用结果
 
 对于ANPInterfaceConverter返回的tools和ANPInterface，需要根据tools的方法名或者函数名，关联进行保存。后面OpenAI tools调用的时候，能够根据方法名或者函数名，找到对应的ANPInterface，然后调用ANPInterface的接口，发送http请求。
-
-
-
-
-
-
-
-
-

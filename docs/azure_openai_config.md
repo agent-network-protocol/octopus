@@ -56,9 +56,9 @@ A: 登录 Azure Portal > 找到你的 OpenAI 资源 > 查看 "Keys and Endpoint"
 A: Azure Portal > OpenAI 资源 > Model deployments > 查看部署列表
 
 ### Q: 如果仍然是 404 错误怎么办？
-A: 
+A:
 1. 检查资源名称是否正确
-2. 检查部署名称是否正确  
+2. 检查部署名称是否正确
 3. 确保 API key 有效
 4. 尝试在 Azure Portal 中测试模型
 
@@ -67,4 +67,4 @@ A:
 修改 .env 文件后，运行以下命令测试：
 ```bash
 uv run python -m test_scripts.simple_openai_test
-``` 
+```

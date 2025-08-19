@@ -44,7 +44,7 @@ Octopus 采用**装饰符 + 反射机制**实现智能体的自动注册，确�
 )
 class DataAnalyzerAgent(BaseAgent):
     """数据分析专家智能体，支持多种数据处理任务"""
-    
+
     @agent_method(
         description="处理CSV格式数据",
         parameters={"file_path": "string", "options": "dict"},
@@ -54,7 +54,7 @@ class DataAnalyzerAgent(BaseAgent):
         """Process CSV data with various options"""
         # 数据处理逻辑
         return {"status": "success", "data": processed_data}
-    
+
     @agent_method(
         description="生成数据统计报告",
         parameters={"data": "dict"},
@@ -83,17 +83,17 @@ class AgentDiscovery:
     def discover_agent_methods(agent_class) -> Dict:
         """自动发现智能体的所有方法"""
         discovered_methods = {}
-        
+
         # 1. 扫描类中的所有方法
         for method_name, method_obj in inspect.getmembers(agent_class, predicate=inspect.ismethod):
             # 2. 检查是否有 @agent_method 装饰符
             if hasattr(method_obj, '_agent_method_meta'):
                 print(f"🔍 发现装饰方法: {method_name}")
-                
+
                 # 3. 获取方法签名
                 signature = inspect.signature(method_obj)
                 print(f"📝 方法签名: {signature}")
-                
+
                 # 4. 解析参数信息
                 parameters = {}
                 for param_name, param in signature.parameters.items():
@@ -105,15 +105,15 @@ class AgentDiscovery:
                         }
                         parameters[param_name] = param_info
                         print(f"  📋 参数 {param_name}: {param_info}")
-                
+
                 # 5. 获取返回值类型
                 return_type = str(signature.return_annotation)
                 print(f"📤 返回类型: {return_type}")
-                
+
                 # 6. 获取文档字符串
                 docstring = inspect.getdoc(method_obj)
                 print(f"📚 文档字符串: {docstring}")
-                
+
                 # 7. 合并所有信息
                 discovered_methods[method_name] = {
                     "description": method_obj._agent_method_meta.get("description", ""),
@@ -122,22 +122,22 @@ class AgentDiscovery:
                     "docstring": docstring,
                     "signature": str(signature)
                 }
-        
+
         return discovered_methods
 
 # 使用示例
 @register_agent(name="example_agent", description="示例智能体")
 class ExampleAgent(BaseAgent):
-    
+
     @agent_method(description="处理文本数据")
     def process_text(self, text: str, options: Dict[str, Any] = None) -> Dict[str, str]:
         """
         Process text data with various options
-        
+
         Args:
             text: Input text to process
             options: Processing options
-            
+
         Returns:
             Dict containing processed results
         """
@@ -163,55 +163,55 @@ from typing import get_type_hints, Union, Optional, Dict, List, Any
 
 class AutoParameterExtractor:
     """无需装饰符的参数自动提取器"""
-    
+
     @staticmethod
     def extract_function_schema(func) -> Dict:
         """直接从函数定义中提取完整的schema信息"""
         # 1. 获取函数基本信息
         func_name = func.__name__
         func_doc = inspect.getdoc(func) or ""
-        
+
         # 2. 获取函数签名和类型提示
         signature = inspect.signature(func)
         type_hints = get_type_hints(func)
-        
+
         print(f"🔍 正在分析函数: {func_name}")
         print(f"📚 函数文档: {func_doc}")
-        
+
         # 3. 解析参数
         properties = {}
         required = []
-        
+
         for param_name, param in signature.parameters.items():
             if param_name == 'self':  # 跳过self参数
                 continue
-                
+
             # 获取类型提示
             param_type = type_hints.get(param_name, param.annotation)
-            
+
             # 解析参数类型
             json_type = AutoParameterExtractor._python_type_to_json_type(param_type)
-            
+
             # 构建参数信息
             param_info = {
                 "type": json_type["type"],
                 "description": f"Parameter {param_name}"  # 可以从docstring解析获得更详细描述
             }
-            
+
             # 添加额外的类型信息
             if "items" in json_type:
                 param_info["items"] = json_type["items"]
-            
+
             properties[param_name] = param_info
-            
+
             # 判断是否为必需参数
             if param.default == inspect.Parameter.empty:
                 required.append(param_name)
             else:
                 param_info["default"] = param.default
-            
+
             print(f"  📋 参数 {param_name}: {param_info}")
-        
+
         # 4. 构建OpenAI Function Calling格式
         return {
             "type": "function",
@@ -226,7 +226,7 @@ class AutoParameterExtractor:
                 }
             }
         }
-    
+
     @staticmethod
     def _python_type_to_json_type(python_type) -> Dict[str, Any]:
         """将Python类型转换为JSON Schema类型"""
@@ -243,21 +243,21 @@ class AutoParameterExtractor:
             return {"type": "object"}
         elif python_type == list or python_type == List:
             return {"type": "array"}
-        
+
         # 处理泛型类型
         if hasattr(python_type, '__origin__'):
             origin = python_type.__origin__
             args = python_type.__args__
-            
+
             if origin is list or origin is List:
                 if args:
                     item_type = AutoParameterExtractor._python_type_to_json_type(args[0])
                     return {"type": "array", "items": item_type}
                 return {"type": "array"}
-            
+
             elif origin is dict or origin is Dict:
                 return {"type": "object"}
-            
+
             elif origin is Union:
                 # 处理Optional类型 (Union[T, None])
                 if len(args) == 2 and type(None) in args:
@@ -265,24 +265,24 @@ class AutoParameterExtractor:
                     return AutoParameterExtractor._python_type_to_json_type(non_none_type)
                 # 处理其他Union类型，默认返回第一个类型
                 return AutoParameterExtractor._python_type_to_json_type(args[0])
-        
+
         # 未知类型默认为string
         return {"type": "string"}
 
 # 直接提取示例
 def process_user_data(
-    users: List[Dict[str, str]], 
+    users: List[Dict[str, str]],
     filter_active: bool = True,
     batch_size: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Process user data with filtering and batching options
-    
+
     Args:
         users: List of user dictionaries
         filter_active: Whether to filter only active users
         batch_size: Size of processing batches
-        
+
     Returns:
         Processed user data results
     """
@@ -310,82 +310,82 @@ from typing import Dict, Optional
 
 class EnhancedParameterExtractor(AutoParameterExtractor):
     """增强版参数提取器，支持从docstring解析参数描述"""
-    
+
     @staticmethod
     def parse_docstring_params(docstring: str) -> Dict[str, str]:
         """从docstring中解析参数描述"""
         param_descriptions = {}
-        
+
         if not docstring:
             return param_descriptions
-        
+
         # 匹配Google风格的docstring参数
         # Args:
         #     param_name: description
         #     another_param: another description
         args_pattern = r'Args:\s*\n((?:\s+\w+[^:]*:.*\n?)*)'
         args_match = re.search(args_pattern, docstring, re.MULTILINE)
-        
+
         if args_match:
             args_section = args_match.group(1)
             # 提取每个参数和描述
             param_pattern = r'\s+(\w+)[^:]*:\s*(.+?)(?=\n\s+\w+|\n\s*$|\Z)'
             param_matches = re.findall(param_pattern, args_section, re.MULTILINE | re.DOTALL)
-            
+
             for param_name, description in param_matches:
                 param_descriptions[param_name] = description.strip()
-        
+
         return param_descriptions
-    
+
     @staticmethod
     def extract_function_schema(func) -> Dict:
         """增强版函数schema提取，包含详细的参数描述"""
         # 1. 获取函数基本信息
         func_name = func.__name__
         func_doc = inspect.getdoc(func) or ""
-        
+
         # 2. 解析docstring中的参数描述
         param_descriptions = EnhancedParameterExtractor.parse_docstring_params(func_doc)
-        
+
         # 3. 获取函数签名和类型提示
         signature = inspect.signature(func)
         type_hints = get_type_hints(func)
-        
+
         print(f"🔍 正在分析函数: {func_name}")
         print(f"📚 解析到的参数描述: {param_descriptions}")
-        
+
         # 4. 解析参数
         properties = {}
         required = []
-        
+
         for param_name, param in signature.parameters.items():
             if param_name == 'self':
                 continue
-                
+
             param_type = type_hints.get(param_name, param.annotation)
             json_type = AutoParameterExtractor._python_type_to_json_type(param_type)
-            
+
             # 使用docstring中的描述，或者生成默认描述
             param_desc = param_descriptions.get(param_name, f"Parameter {param_name}")
-            
+
             param_info = {
                 "type": json_type["type"],
                 "description": param_desc
             }
-            
+
             if "items" in json_type:
                 param_info["items"] = json_type["items"]
-            
+
             properties[param_name] = param_info
-            
+
             if param.default == inspect.Parameter.empty:
                 required.append(param_name)
             else:
                 param_info["default"] = param.default
-        
+
         # 5. 提取函数描述（第一行或者整体描述）
         func_description = func_doc.split('\n')[0] if func_doc else f"Function {func_name}"
-        
+
         return {
             "type": "function",
             "function": {
@@ -454,8 +454,8 @@ Octopus 的核心创新在于采用了**装饰符 + 反射机制**实现智能�
 # 支持复杂类型提示
 @agent_method(description="处理用户数据")
 def process_user_data(
-    self, 
-    users: List[Dict[str, Union[str, int]]], 
+    self,
+    users: List[Dict[str, Union[str, int]]],
     filter_options: Optional[Dict[str, Any]] = None
 ) -> Tuple[List[Dict], Dict[str, int]]:
     """处理用户数据并返回结果和统计信息"""
@@ -492,7 +492,7 @@ from typing import Dict, List, Optional
 )
 class TextProcessorAgent(BaseAgent):
     """文本处理专家智能体，提供多种文本分析和处理功能"""
-    
+
     def __init__(self):
         super().__init__()
         # 初始化特定资源
@@ -514,12 +514,12 @@ class TextProcessorAgent(BaseAgent):
 def analyze_sentiment(self, text: str, language: str = "zh", detailed: bool = False) -> Dict:
     """
     Analyze sentiment of the given text
-    
+
     Args:
         text: Text to analyze
         language: Language code (zh, en, etc.)
         detailed: Whether to return detailed analysis
-        
+
     Returns:
         Dictionary containing sentiment analysis results
     """
@@ -529,14 +529,14 @@ def analyze_sentiment(self, text: str, language: str = "zh", detailed: bool = Fa
         "confidence": 0.85,
         "language": language
     }
-    
+
     if detailed:
         result["details"] = {
             "positive_score": 0.85,
             "negative_score": 0.15,
             "neutral_score": 0.0
         }
-    
+
     return result
 
 @agent_method(
@@ -550,11 +550,11 @@ def analyze_sentiment(self, text: str, language: str = "zh", detailed: bool = Fa
 def extract_keywords(self, text: str, max_keywords: int = 10) -> List[str]:
     """
     Extract keywords from text
-    
+
     Args:
         text: Source text
         max_keywords: Maximum number of keywords to return
-        
+
     Returns:
         List of extracted keywords
     """
@@ -584,8 +584,8 @@ def extract_keywords(self, text: str, max_keywords: int = 10) -> List[str]:
 ```python
 @agent_method(description="处理复杂数据结构")
 def process_complex_data(
-    self, 
-    data: Dict[str, List[int]], 
+    self,
+    data: Dict[str, List[int]],
     options: Optional[Dict] = None
 ) -> Dict[str, Any]:
     """处理复杂的数据结构"""
@@ -605,12 +605,12 @@ def process_complex_data(
     dependencies=["opencv", "pillow"]
 )
 class ImageProcessorAgent(BaseAgent):
-    
+
     @agent_method(
         description="调整图像尺寸",
         parameters={
             "image_path": "string",
-            "width": "integer", 
+            "width": "integer",
             "height": "integer",
             "keep_aspect_ratio": "boolean"
         },
@@ -641,8 +641,8 @@ class ProcessResult:
 
 @agent_method(description="处理复杂数据结构")
 def process_complex_data(
-    self, 
-    input_data: List[Dict[str, Union[str, int, float]]], 
+    self,
+    input_data: List[Dict[str, Union[str, int, float]]],
     options: Optional[Dict[str, Any]] = None
 ) -> ProcessResult:
     """使用具体的类型提示提高代码可读性和类型安全"""
@@ -659,14 +659,14 @@ def reliable_method(self, data: Dict) -> Dict:
         # 参数验证
         if not data:
             raise ValueError("Input data cannot be empty")
-        
+
         # 业务逻辑
         result = self._process_business_logic(data)
-        
+
         # 成功日志
         self.logger.info(f"Successfully processed {len(data)} items")
         return {"status": "success", "result": result}
-        
+
     except ValueError as e:
         self.logger.warning(f"Validation error: {str(e)}")
         return {"status": "error", "error_type": "validation", "message": str(e)}
@@ -683,23 +683,23 @@ class OptimizedAgent(BaseAgent):
         super().__init__()
         self._cache = {}
         self._initialized = False
-    
+
     def _lazy_init(self):
         """延迟初始化重型资源"""
         if not self._initialized:
             self._heavy_resource = self._load_heavy_resource()
             self._initialized = True
-    
+
     @agent_method(description="高性能处理方法")
     def high_performance_method(self, data: List[Dict]) -> Dict:
         """使用缓存和延迟初始化优化性能"""
         self._lazy_init()
-        
+
         # 使用缓存
         cache_key = self._generate_cache_key(data)
         if cache_key in self._cache:
             return self._cache[cache_key]
-        
+
         # 处理逻辑
         result = self._process_data(data)
         self._cache[cache_key] = result
@@ -713,7 +713,7 @@ class OptimizedAgent(BaseAgent):
     description="文本相似度计算",
     parameters={
         "text1": "string",
-        "text2": "string", 
+        "text2": "string",
         "algorithm": "string"
     },
     returns="float"
@@ -721,21 +721,21 @@ class OptimizedAgent(BaseAgent):
 def calculate_similarity(self, text1: str, text2: str, algorithm: str = "cosine") -> float:
     """
     Calculate similarity between two texts using specified algorithm.
-    
+
     This method supports multiple similarity algorithms and provides
     normalized similarity scores between 0 and 1.
-    
+
     Args:
         text1: First text for comparison
-        text2: Second text for comparison  
+        text2: Second text for comparison
         algorithm: Similarity algorithm ('cosine', 'jaccard', 'levenshtein')
-        
+
     Returns:
         float: Similarity score between 0.0 and 1.0
-        
+
     Raises:
         ValueError: If algorithm is not supported
-        
+
     Examples:
         >>> agent.calculate_similarity("hello world", "hello there")
         0.816
@@ -771,17 +771,17 @@ def register_agent(name: str, description: str, **kwargs):
             "module": cls.__module__,
             "methods": {}
         }
-        
+
         # 2. 通过反射扫描类的方法
         for method_name, method_obj in inspect.getmembers(cls, predicate=inspect.isfunction):
             if hasattr(method_obj, '_agent_method_meta'):
                 # 3. 提取方法的元数据
                 method_meta = method_obj._agent_method_meta
-                
+
                 # 4. 解析方法签名
                 signature = inspect.signature(method_obj)
                 parameters = {}
-                
+
                 for param_name, param in signature.parameters.items():
                     if param_name != 'self':
                         parameters[param_name] = {
@@ -789,17 +789,17 @@ def register_agent(name: str, description: str, **kwargs):
                             "required": param.default == inspect.Parameter.empty,
                             "default": param.default if param.default != inspect.Parameter.empty else None
                         }
-                
+
                 agent_metadata["methods"][method_name] = {
                     "description": method_meta.get("description", ""),
                     "parameters": parameters,
                     "returns": str(signature.return_annotation),
                     "docstring": method_obj.__doc__
                 }
-        
+
         # 5. 注册到全局路由器
         AgentRouter.register(agent_metadata)
-        
+
         return cls
     return decorator
 ```
@@ -829,18 +829,13 @@ class TypeHintParser:
             # 处理泛型类型，如 List[str], Dict[str, int]
             origin = type_hint.__origin__
             args = type_hint.__args__
-            
+
             if origin is list:
                 return {"type": "list", "item_type": str(args[0])}
             elif origin is dict:
                 return {"type": "dict", "key_type": str(args[0]), "value_type": str(args[1])}
             elif origin is Union:
                 return {"type": "union", "types": [str(arg) for arg in args]}
-        
+
         return {"type": str(type_hint)}
 ```
-
-
-
-
-

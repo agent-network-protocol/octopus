@@ -262,28 +262,28 @@ body {
         max-width: none;
         border-radius: 0;
     }
-    
+
     .header {
         padding: 1rem 1.5rem;
     }
-    
+
     .title {
         font-size: 1.25rem;
     }
-    
+
     .chat-messages {
         padding: 1.5rem;
         gap: 1rem;
     }
-    
+
     .message {
         max-width: 90%;
     }
-    
+
     .input-container {
         padding: 1rem 1.5rem 1.5rem;
     }
-    
+
     .message-avatar {
         width: 32px;
         height: 32px;
@@ -383,5 +383,3 @@ body {
         opacity: 1;
     }
 }
-
- 

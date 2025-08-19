@@ -46,7 +46,7 @@
                 "description": "Check-in date in YYYY-MM-DD format"
               },
               "checkOut": {
-                "type": "string", 
+                "type": "string",
                 "format": "date",
                 "description": "Check-out date in YYYY-MM-DD format"
               },

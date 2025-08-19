@@ -37,7 +37,7 @@ ANP Crawler 重构方案
       "url": "https://grand-hotel.com/products/luxury-rooms.json"
     },
     {
-      "type": "Product", 
+      "type": "Product",
       "description": "Comprehensive concierge and guest services including dining, spa, and local attractions.",
       "url": "https://grand-hotel.com/products/concierge-services.json"
     }
@@ -77,7 +77,7 @@ ANP Crawler 重构方案
 ```json
 {
     "agentDescriptionURI":"https://abc.com/ad.json",
-    "contentURI":"https://abc.com/ad.json", 
+    "contentURI":"https://abc.com/ad.json",
     "content":"原始文件内容"
 }
 ```
@@ -114,7 +114,7 @@ ANP Crawler 重构方案
     "type": "function",
     "function": {
         "name": "方法名",
-        "description": "方法描述", 
+        "description": "方法描述",
         "parameters": {
             "type": "object",
             "properties": {...},
@@ -129,7 +129,7 @@ ANP Crawler 重构方案
 ### 核心设计理念
 将 anp_crawler 重构为纯粹的数据获取和解析 SDK，完全移除 LLM 依赖，专注于：
 1. 单个 URL 的内容获取和解析
-2. Interface 信息提取和格式转换  
+2. Interface 信息提取和格式转换
 3. 统一输出为 OpenAI Tools 格式
 
 ### 新文件结构
@@ -141,7 +141,7 @@ ANP Crawler 重构方案
 **新增文件**：
 - `anp_client.py` - 新的HTTP客户端类
 - `anp_parser.py` - 文档解析类
-- `anp_interface.py` - 接口转换类  
+- `anp_interface.py` - 接口转换类
 - `anp_session.py` - 会话管理类
 
 ### 类设计架构
@@ -153,7 +153,7 @@ ANPSession (会话管理类) - anp_session.py
 ├── 缓存获取结果
 └── 提供统一的接口入口
 
-ANPClient (HTTP客户端类) - anp_client.py  
+ANPClient (HTTP客户端类) - anp_client.py
 ├── 复用 ANPTool 的 DID 认证能力
 ├── 执行 HTTP 请求
 ├── 处理响应格式（JSON/YAML/文本）
@@ -168,7 +168,7 @@ ANPDocumentParser (文档解析类) - anp_parser.py
 
 ANPInterface (接口转换类) - anp_interface.py
 ├── JSON-RPC 格式转换
-├── YAML 接口格式转换  
+├── YAML 接口格式转换
 ├── MCP 格式转换
 ├── REST API 格式转换
 └── 统一输出为 OpenAI Tools JSON 格式
@@ -202,7 +202,7 @@ ANPInterface (接口转换类) - anp_interface.py
 - **支持格式**：Agent Description、JSON-RPC/OpenRPC文件、YAML接口文件等
 - **处理逻辑**：解析JSON内容，提取interfaces字段或methods字段，转换为OpenAI Tools格式
 
-#### 场景2：多媒体内容处理  
+#### 场景2：多媒体内容处理
 - **支持格式**：图片（JPG、PNG、GIF）、视频（MP4、AVI、MOV）、音频（MP3、WAV、AAC）
 - **处理逻辑**：获取文件元数据信息，通常不包含接口定义
 
