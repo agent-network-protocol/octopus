@@ -88,4 +88,4 @@
 ---
 *测试时间: 2025-08-04*
 *测试工具: curl, 直接HTTP请求*
-*服务器: Octopus on localhost:9527*
+*服务器: Octopus on localhost:9527 (默认配置)*

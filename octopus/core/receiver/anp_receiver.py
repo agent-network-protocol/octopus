@@ -8,11 +8,11 @@ from typing import Any
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from octopus.config.settings import AuthConfig, ReceiverConfig, get_settings
-from octopus.core.receiver.client import ReceiverClient
+from ...config.settings import AuthConfig, ReceiverConfig, get_settings
 
 # ANP utilities are now embedded
-from octopus.utils.log_base import get_logger
+from ...utils.log_base import get_logger
+from .client import ReceiverClient
 
 logger = get_logger(__name__)
 
@@ -110,8 +110,6 @@ class DidWbaVerifierAdapter:
             return DidAuthResult(success=False, error=str(exc))
 
 
-
-
 # Use the adapter directly
 DidWbaVerifier = DidWbaVerifierAdapter
 
@@ -140,26 +138,20 @@ class DIDReceiverService:
         did: str,
         fastapi_app: FastAPI,
         gateway_url: str,
-        advertised_services: list[str],
         did_document_path: str | None = None,
         private_key_path: str | None = None,
-        priority: int = 100,
     ):
         self.did = did
         self.fastapi_app = fastapi_app
         self.gateway_url = gateway_url
-        self.advertised_services = advertised_services
         self.did_document_path = did_document_path
         self.private_key_path = private_key_path
-        self.priority = priority
         self.receiver_client: ReceiverClient | None = None
         self._running = False
 
         logger.info(
             f"DID Receiver Service initialized for {did}",
             gateway_url=gateway_url,
-            advertised_services=advertised_services,
-            priority=priority,
         )
 
     async def start(self) -> None:
@@ -234,8 +226,6 @@ class DIDReceiverService:
             "did": self.did,
             "running": self._running,
             "gateway_url": self.gateway_url,
-            "advertised_services": self.advertised_services,
-            "priority": self.priority,
         }
 
 
@@ -247,29 +237,24 @@ class ANPReceiverService:
         fastapi_app: FastAPI,
         config: ReceiverConfig,
         gateway_url: str,
-        advertised_services: list[str],
     ):
         self.fastapi_app = fastapi_app
         self.config = config
         self.gateway_url = gateway_url
-        self.advertised_services = advertised_services
         self.did_services: dict[str, DIDReceiverService] = {}
         self._running = False
 
         logger.info(
             "ANP Receiver Service initialized",
             gateway_url=gateway_url,
-            advertised_services=advertised_services,
         )
 
     async def add_did_service(
         self,
         did: str,
         gateway_url: str | None = None,
-        advertised_services: list[str] | None = None,
         did_document_path: str | None = None,
         private_key_path: str | None = None,
-        priority: int = 100,
         auto_start: bool = True,
     ) -> DIDReceiverService:
         """Add a DID receiver service."""
@@ -278,17 +263,14 @@ class ANPReceiverService:
 
         # Use defaults if not provided
         gateway_url = gateway_url or self.gateway_url
-        advertised_services = advertised_services or self.advertised_services
 
         # Create DID service
         did_service = DIDReceiverService(
             did=did,
             fastapi_app=self.fastapi_app,
             gateway_url=gateway_url,
-            advertised_services=advertised_services,
             did_document_path=did_document_path,
             private_key_path=private_key_path,
-            priority=priority,
         )
 
         self.did_services[did] = did_service
@@ -371,7 +353,6 @@ class ANPReceiverService:
 async def create_anp_receiver_service(
     app: FastAPI,
     did_configs: list[dict[str, Any]] | None = None,
-    advertised_services: list[str] | None = None,
 ) -> ANPReceiverService:
     """Create an ANP Receiver Service with multiple DID configurations."""
 
@@ -379,24 +360,17 @@ async def create_anp_receiver_service(
     settings = get_settings()
     receiver_config = settings.anp_receiver
 
-    # Use legacy settings as fallback
-    gateway_url = settings.anp_gateway_url or receiver_config.gateway_url
+    # Use configured gateway URL
+    gateway_url = settings.anp_gateway_ws_url or receiver_config.gateway_url
 
-    # Note: In new architecture, Gateway determines service routing
-    # Receiver only provides capabilities, Gateway controls assignments
-    if not advertised_services:
-        # Fallback to default service capabilities for compatibility
-        from octopus.config.settings import get_advertised_services
-
-        advertised_services = get_advertised_services()
-        logger.info("Using default advertised services for backward compatibility")
+    # TODO(anpproxy): Gateway should push database proxy paths to receiver via WSS.
+    # Receiver will validate its local app endpoints and acknowledge usable paths.
 
     # Create ANP Receiver Service
     service = ANPReceiverService(
         fastapi_app=app,
         config=receiver_config,
         gateway_url=gateway_url,
-        advertised_services=advertised_services,
     )
 
     # Add DID services if provided
@@ -405,10 +379,8 @@ async def create_anp_receiver_service(
             await service.add_did_service(
                 did=did_config["did"],
                 gateway_url=did_config.get("gateway_url"),
-                advertised_services=did_config.get("advertised_services"),
                 did_document_path=did_config.get("did_document_path"),
                 private_key_path=did_config.get("private_key_path"),
-                priority=did_config.get("priority", 100),
                 auto_start=False,
             )
 

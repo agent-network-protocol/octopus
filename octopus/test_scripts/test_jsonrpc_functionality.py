@@ -8,7 +8,10 @@ import json
 import subprocess
 import sys
 
-BASE_URL = "http://localhost:9527"
+from octopus.config.settings import get_settings
+
+settings = get_settings()
+BASE_URL = f"http://{settings.host}:{settings.port}"
 
 
 def call_jsonrpc(method, params=None, request_id="test"):

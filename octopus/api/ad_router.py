@@ -22,7 +22,9 @@ router = APIRouter(prefix="/agents")
 settings = get_settings()
 
 # Default domain for agent descriptions
-AGENT_DESCRIPTION_JSON_DOMAIN = f"{settings.host}:{settings.anp_gateway_http_port}"
+AGENT_DESCRIPTION_JSON_DOMAIN = (
+    settings.anp_gateway_http_url or f"{settings.host}:{settings.port}"
+)
 DID_DOMAIN = settings.did_domain
 DID_PATH = settings.did_path
 

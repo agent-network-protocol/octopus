@@ -31,7 +31,11 @@ class MasterAgent(BaseAgent):
     """
 
     def __init__(
-        self, api_key: str|None = None, model: str|None = None, base_url: str|None = None, **kwargs
+        self,
+        api_key: str | None = None,
+        model: str | None = None,
+        base_url: str | None = None,
+        **kwargs,
     ):
         """
         Initialize the Master Agent.

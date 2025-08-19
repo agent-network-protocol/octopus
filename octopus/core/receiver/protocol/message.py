@@ -10,8 +10,10 @@ try:
     from octopus.utils.log_base import get_logger
 except ImportError:
     import logging
+
     def get_logger(name):
         return logging.getLogger(name)
+
 
 logger = get_logger(__name__)
 
@@ -102,7 +104,7 @@ class ANPXHeader:
     def encode(self) -> bytes:
         """Encode header to 24 bytes."""
         logger.debug(
-            f"🔧 [HEADER_ENCODE] Starting header encode",
+            "🔧 [HEADER_ENCODE] Starting header encode",
             message_type=self.message_type,
             flags=self.flags,
             total_length=self.total_length,
@@ -129,7 +131,7 @@ class ANPXHeader:
         header_crc = calculate_crc32(crc_data)
 
         logger.debug(
-            f"🔧 [HEADER_ENCODE] CRC calculation",
+            "🔧 [HEADER_ENCODE] CRC calculation",
             crc_data=crc_data.hex(),
             calculated_crc=f"{header_crc:08x}",
         )
@@ -153,7 +155,7 @@ class ANPXHeader:
 
         result = final_header[: self.HEADER_SIZE]
         logger.debug(
-            f"🔧 [HEADER_ENCODE] Header encode completed",
+            "🔧 [HEADER_ENCODE] Header encode completed",
             final_header=result.hex(),
             header_size=len(result),
         )
@@ -163,14 +165,12 @@ class ANPXHeader:
     @classmethod
     def decode(cls, data: bytes) -> "ANPXHeader":
         """Decode header from 24 bytes."""
-        logger.debug(
-            f"🔍 [HEADER_DECODE] Starting header decode", data_length=len(data)
-        )
-        logger.debug(f"🔍 [HEADER_DECODE] Raw header data", raw_data=data[:24].hex())
+        logger.debug("🔍 [HEADER_DECODE] Starting header decode", data_length=len(data))
+        logger.debug("🔍 [HEADER_DECODE] Raw header data", raw_data=data[:24].hex())
 
         if len(data) < cls.HEADER_SIZE:
             logger.error(
-                f"🔍 [HEADER_DECODE] Header too short",
+                "🔍 [HEADER_DECODE] Header too short",
                 expected=cls.HEADER_SIZE,
                 actual=len(data),
             )
@@ -184,7 +184,7 @@ class ANPXHeader:
         )
 
         logger.debug(
-            f"🔍 [HEADER_DECODE] Unpacked header fields",
+            "🔍 [HEADER_DECODE] Unpacked header fields",
             magic=magic,
             version=version,
             msg_type=msg_type,
@@ -196,13 +196,13 @@ class ANPXHeader:
 
         if magic != cls.MAGIC:
             logger.error(
-                f"🔍 [HEADER_DECODE] Invalid magic", expected=cls.MAGIC, actual=magic
+                "🔍 [HEADER_DECODE] Invalid magic", expected=cls.MAGIC, actual=magic
             )
             raise ValueError(f"Invalid magic: {magic}")
 
         if version != cls.VERSION:
             logger.error(
-                f"🔍 [HEADER_DECODE] Unsupported version",
+                "🔍 [HEADER_DECODE] Unsupported version",
                 expected=cls.VERSION,
                 actual=version,
             )
@@ -215,7 +215,7 @@ class ANPXHeader:
         calculated_crc = zlib.crc32(header_data_for_crc) & 0xFFFFFFFF
 
         logger.debug(
-            f"🔍 [HEADER_DECODE] CRC verification",
+            "🔍 [HEADER_DECODE] CRC verification",
             header_data=header_data_for_crc.hex(),
             expected_crc=f"{header_crc:08x}",
             calculated_crc=f"{calculated_crc:08x}",
@@ -223,14 +223,14 @@ class ANPXHeader:
 
         if not verify_crc32(header_data_for_crc, header_crc):
             logger.error(
-                f"🔍 [HEADER_DECODE] CRC validation failed",
+                "🔍 [HEADER_DECODE] CRC validation failed",
                 expected=f"{header_crc:08x}",
                 calculated=f"{calculated_crc:08x}",
                 header_data=header_data_for_crc.hex(),
             )
             raise ValueError("Header CRC validation failed")
 
-        logger.debug(f"🔍 [HEADER_DECODE] Header decode completed successfully")
+        logger.debug("🔍 [HEADER_DECODE] Header decode completed successfully")
 
         return cls(
             message_type=MessageType(msg_type),

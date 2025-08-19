@@ -17,11 +17,11 @@ import websockets
 from agent_connect.authentication import DIDWbaAuthHeader
 from websockets.client import WebSocketClientProtocol
 
-from octopus.config.settings import AuthConfig, ReceiverConfig, get_settings
-from octopus.core.receiver.app_adapter import ASGIAdapter, MockASGIApp
-from octopus.core.receiver.message_handler import MessageHandler
-from octopus.core.receiver.reconnect import ConnectionState, ReconnectManager
-from octopus.utils.log_base import get_logger
+from ...config.settings import AuthConfig, ReceiverConfig, get_settings
+from ...utils.log_base import get_logger
+from .app_adapter import ASGIAdapter, MockASGIApp
+from .message_handler import MessageHandler
+from .reconnect import ConnectionState, ReconnectManager
 
 logger = get_logger(__name__)
 
@@ -255,21 +255,23 @@ class ReceiverClient:
         # Cancel tasks with timeout
         tasks_to_cancel = [self._message_task, self._ping_task]
         tasks_to_cancel = [task for task in tasks_to_cancel if task and not task.done()]
-        
+
         if tasks_to_cancel:
             logger.info(f"Cancelling {len(tasks_to_cancel)} tasks")
             for task in tasks_to_cancel:
                 task.cancel()
-            
+
             try:
                 # Wait for tasks to complete cancellation with timeout
                 await asyncio.wait_for(
                     asyncio.gather(*tasks_to_cancel, return_exceptions=True),
-                    timeout=5.0
+                    timeout=5.0,
                 )
                 logger.info("All tasks cancelled successfully")
-            except asyncio.TimeoutError:
-                logger.warning("Task cancellation timed out, some tasks may still be running")
+            except TimeoutError:
+                logger.warning(
+                    "Task cancellation timed out, some tasks may still be running"
+                )
             except Exception as e:
                 logger.warning(f"Error during task cancellation: {e}")
 
@@ -287,7 +289,7 @@ class ReceiverClient:
                     shutdown.add_task(self._message_task)
                 if self._ping_task:
                     shutdown.add_task(self._ping_task)
-                
+
                 await shutdown.wait()
                 logger.info("Shutdown signal received, cleaning up...")
             finally:
@@ -502,16 +504,16 @@ class ReceiverClient:
     async def _respond_service_capabilities(self, request: dict) -> None:
         """Respond to service capability request from gateway."""
         try:
-            from octopus.config.settings import get_advertised_services
-
-            advertised_services = get_advertised_services()
+            # TODO(anpproxy): Gateway will push database proxy paths to receiver via WSS.
+            # Receiver should test its local app (e.g., /path/health) and return only usable paths.
+            # For now, respond with empty capability list. Implement handshake later.
 
             response = {
                 "type": "service_capability_response",
                 "request_id": request.get("request_id"),
                 "timestamp": int(time.time()),
                 "capabilities": {
-                    "supported_services": advertised_services,
+                    "supported_services": [],
                     "max_concurrent_requests": 100,
                     "supports_http": True,
                     "supports_websocket": True,
@@ -520,7 +522,7 @@ class ReceiverClient:
             }
 
             logger.info(
-                f"🔄 [RECEIVER] Sending service capabilities: {advertised_services}"
+                "🔄 [RECEIVER] Sending service capabilities (empty, pending gateway push)"
             )
             await self.websocket.send(json.dumps(response))
 

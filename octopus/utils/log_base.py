@@ -132,8 +132,9 @@ def setup_logging(
                 super().__init__(*args, **kwargs)
                 # Pre-compile regex pattern to avoid import during shutdown
                 import re
+
                 self.ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-            
+
             def format(self, record):
                 # Remove ANSI color codes from the message
                 if hasattr(record, "msg"):

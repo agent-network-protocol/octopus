@@ -1,14 +1,15 @@
-# Octopus
+# 🐙 Octopus Multi-Agent AI System
 
-A Open Source Personal Agent - 一个开源的个人智能体系统
+A modern, distributed multi-agent AI system with ANP (Agent Network Protocol) support.
 
-## 项目简介
+## ✨ 特性
 
-Octopus 是一个基于 FastAPI 的多智能体系统，提供了以下功能：
-- 智能体注册和发现机制
-- 任务分析和分解
-- 智能体协调和执行
-- 基于 OpenAI 的任务处理
+- 🤖 **多智能体架构**: 基于装饰符的智能体注册和发现机制
+- 🌐 **分布式通信**: 支持 ANP 协议的跨节点智能体通信
+- 🎯 **任务协调**: 自然语言任务分析、分解和智能分发
+- ⚡ **高性能**: 基于 FastAPI 的异步处理框架
+- 🛠️ **开发友好**: 丰富的 CLI 工具和配置选项
+- 🔐 **安全认证**: 支持 DID 去中心化身份认证
 
 ## 环境配置
 
@@ -28,74 +29,122 @@ uv sync
 
 1. 复制环境变量模板文件：
    ```bash
-   cp .env_template .env
+   cp .env.example .env
    ```
 
 2. 编辑 `.env` 文件，填入您的实际配置：
    ```bash
    # OpenAI Configuration
    OPENAI_API_KEY=your_actual_openai_api_key
-   OPENAI_MODEL=gpt-4-turbo-preview
+   OPENAI_MODEL=openai/gpt-4o
 
    # Application Configuration
-   APP_NAME=Octopus
-   APP_PORT=9880
+   PORT=9527
+   HOST=0.0.0.0
    LOG_LEVEL=INFO
+
+   # ANP Configuration
+   ANP_SDK_ENABLED=true
+   ANP_GATEWAY_WS_URL=wss://anpproxy.com/ws
+   ANP_GATEWAY_HTTP_URL=www.anpproxy.com
+   ANP__RECEIVER__LOCAL_PORT=8001
    ```
 
 **重要提示：** `.env` 文件包含敏感信息，已被 `.gitignore` 忽略，不会被提交到版本控制系统。
 
-## 运行项目
+## 🚀 快速开始
 
-### 1. 启动 FastAPI 服务器
+### 1. 基础启动
 
 ```bash
-# 使用内置的 main 函数启动（推荐）
+# 默认启动（端口 9527）
 uv run python -m octopus.octopus
 
-# 或者使用 uvicorn 直接启动
-uv run uvicorn octopus.octopus:app --host 0.0.0.0 --port 9880 --reload
+# 查看所有选项
+uv run python -m octopus.octopus --help
+
+# 检查版本
+uv run python -m octopus.octopus --version
 ```
 
-### 2. 访问 API
+### 2. CLI 选项
 
-服务器启动后，您可以访问：
-- 根路径：http://localhost:9880/
-- 健康检查：http://localhost:9880/health
-- 应用信息：http://localhost:9880/v1/info
-- 代理描述：http://localhost:9880/ad.json
+```bash
+# 自定义端口
+uv run python -m octopus.octopus --port 9529
 
-## 项目结构
+# 调试模式
+uv run python -m octopus.octopus --debug --log-level DEBUG
+
+# 禁用 ANP（单机模式）
+uv run python -m octopus.octopus --no-anp
+
+# 使用自定义配置文件
+uv run python -m octopus.octopus --config .env.production
+```
+
+### 3. 多实例部署
+
+启动两个 Octopus 实例进行 ANP 通信：
+
+```bash
+# 终端 1: 启动 ANP-Proxy（如需本地测试）
+cd /path/to/anp-proxy
+uv run python -m anp_proxy
+
+# 终端 2: 启动 Octopus-A
+uv run python -m octopus.octopus --port 9527 --anp-gateway wss://anpproxy.com/ws
+
+# 终端 3: 启动 Octopus-B
+uv run python -m octopus.octopus --port 9529 --anp-gateway wss://anpproxy.com/ws
+```
+
+### 4. 访问 API
+
+服务器启动后，可以访问（默认端口 9527）：
+- 🏠 主页面：http://localhost:9527/
+- 💚 健康检查：http://localhost:9527/health
+- ℹ️ 应用信息：http://localhost:9527/v1/info
+- 🤖 智能体描述：http://localhost:9527/ad.json
+- 📡 ANP 状态：http://localhost:9527/anp/status
+
+*注意：如果修改了端口配置，请相应调整URL*
+
+## 📁 项目结构
 
 ```
 octopus/
 ├── octopus/                    # 主要代码包
 │   ├── agents/                 # 智能体相关代码
 │   │   ├── base_agent.py       # 基础智能体类
+│   │   ├── message/            # 消息处理智能体
 │   │   └── text_processor_agent.py  # 文本处理智能体
+│   ├── core/                   # 核心功能模块
+│   │   └── receiver/           # ANP 接收器
 │   ├── router/                 # 路由管理
 │   │   └── agents_router.py    # 智能体路由器
-│   ├── utils/                  # 工具类
-│   │   └── log_base.py         # 日志配置
+│   ├── api/                    # API 接口
+│   │   ├── chat_router.py      # 聊天接口
+│   │   └── ad_router.py        # 智能体描述接口
 │   ├── config/                 # 配置管理
-│   │   └── settings.py         # 应用设置
-│   ├── master_agent.py         # 主智能体
-│   └── octopus.py              # FastAPI 应用入口
-├── .env_template               # 环境变量模板
-├── pyproject.toml              # 项目配置
+│   │   └── settings.py         # 应用设置（支持 CLI 覆盖）
+│   ├── utils/                  # 工具类
+│   │   └── log_base.py         # 增强日志系统
+│   ├── master_agent.py         # 主智能体协调器
+│   └── octopus.py              # CLI 和 FastAPI 应用入口
+├── .env.example                # 环境变量模板
+├── pyproject.toml              # 项目配置（包含 Click CLI）
+├── docs/                       # 项目文档
+│   ├── environment_setup.md    # 环境配置指南
+│   └── azure_openai_config.md  # Azure OpenAI 配置
 └── README.md                   # 项目说明
 ```
 
-## 开发说明
-
-### 日志系统
-
-项目使用统一的日志系统：
-- 主入口 `octopus.py` 使用 `setup_enhanced_logging()` 初始化日志
-- 其他模块使用 `logging.getLogger(__name__)` 获取日志器
-- 日志文件位置：`~/Library/Logs/octopus/octopus.log`（macOS）
+## 🛠️ 开发指南
 
 ### 智能体开发
+
+创建自定义智能体的步骤：
 
 1. 继承 `BaseAgent` 类
 2. 使用 `@register_agent` 装饰器注册智能体
@@ -103,65 +152,83 @@ octopus/
 
 示例：
 ```python
+from octopus.agents.base_agent import BaseAgent
+from octopus.router.agents_router import register_agent, agent_method
+
 @register_agent(name="my_agent", description="My custom agent")
 class MyAgent(BaseAgent):
     @agent_method(description="Process text")
-    def process_text(self, text: str) -> str:
+    async def process_text(self, text: str) -> str:
         return f"Processed: {text}"
 ```
 
-## ANP 爬虫集成测试
+### 日志系统
 
-项目集成了 ANP（Agent Network Protocol）爬虫功能，用于测试分布式智能体网络的连通性和认证机制。
+- 📝 **增强日志**: 彩色输出，位置信息，文件记录
+- 📂 **日志文件**: `~/Library/Logs/octopus/octopus.log`（macOS）
+- 🎚️ **日志级别**: 通过 `--log-level` 或环境变量控制
 
-### 功能特性
+### 配置系统
 
-- **自动集成测试**: 服务器启动后自动运行 ANP 爬虫测试
-- **DID 身份认证**: 支持基于 DID（去中心化身份）的认证机制
-- **多层验证**: 先进行直接 HTTP 访问，再尝试 DID 认证访问
-- **优雅降级**: 当 DID 认证不可用时，仍能进行基本功能测试
+支持多层级配置优先级：
+1. **CLI 参数**（最高优先级）
+2. **环境变量**
+3. **配置文件**（最低优先级）
 
-### 测试流程
+## 🧪 测试和开发
 
-1. **服务器启动检测**: 等待 FastAPI 服务器完全启动
-2. **直接访问测试**: 通过 HTTP 直接访问 `/ad.json` 端点
-3. **DID 认证测试**: 尝试使用 DID 身份进行认证访问
-4. **结果验证**: 验证返回的代理描述信息的完整性
-
-### 手动运行测试
+### 运行测试
 
 ```bash
-# 运行 ANP 爬虫测试
+# 运行所有测试
+uv run pytest
+
+# 运行特定测试类别
+uv run pytest -m unit        # 单元测试
+uv run pytest -m integration # 集成测试
+uv run pytest -m "not slow"  # 跳过慢速测试
+```
+
+### 代码质量
+
+```bash
+# 格式化代码
+uv run black octopus/
+
+# 代码检查
+uv run flake8 octopus/
+
+# 类型检查
+uv run mypy octopus/
+```
+
+### ANP 集成测试
+
+系统包含 ANP 协议的集成测试功能：
+
+```bash
+# 手动运行 ANP 爬虫测试
 uv run python -m octopus.test_scripts.test_anp_crawler
 
-# 启动服务器（测试会自动运行）
-uv run python -m octopus.octopus
+# 测试 ANP 功能（需要 anp-proxy 运行）
+uv run python -m octopus.test_scripts.test_anp_functionality
 ```
 
-### 日志输出示例
+## 🔧 技术栈
 
-```
-[2025-08-01 17:19:47] INFO 🚀 Starting ANP Crawler integration test
-[2025-08-01 17:19:47] INFO ✅ Direct HTTP access to /ad.json successful
-[2025-08-01 17:19:47] INFO Agent name: Octopus Multi-Agent System
-[2025-08-01 17:19:47] INFO 🎉 ANP Crawler integration test PASSED
-```
+- **Python**: 3.11+
+- **Web 框架**: FastAPI + Uvicorn
+- **CLI 框架**: Click
+- **配置管理**: Pydantic Settings
+- **包管理**: uv
+- **AI 集成**: OpenAI API
+- **协议支持**: ANP (Agent Network Protocol)
+- **身份认证**: DID (Decentralized Identity)
 
-### DID 认证配置
+## 📄 许可证
 
-如需完整的 DID 认证功能，请确保以下文件存在：
-- `docs/user_public/did.json` - DID 文档
-- `docs/user_public/key-1_private.pem` - 私钥文件
+MIT License - 详见 [LICENSE](LICENSE) 文件。
 
-## 许可证
+## 🤝 贡献
 
-本项目采用开源许可证，详见 [LICENSE](LICENSE) 文件。
-
-
-# 页面地址：
-
-http://localhost:9527/
-
-发送内容：
-
-我要给一个智能体发送一个消息，消息内容是：你好。智能体的URL是：http://localhost:9527/ad.json
+欢迎提交 Issue 和 Pull Request！

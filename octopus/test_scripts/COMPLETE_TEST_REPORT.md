@@ -5,7 +5,7 @@
 本报告详细记录了对 `ad_router.py` 进行的全面功能测试，包括 ANP 协议支持、OpenRPC 接口生成、JSON-RPC 调用逻辑和访问级别控制。
 
 **测试时间**: 2025-08-04
-**测试环境**: Octopus on localhost:9527
+**测试环境**: Octopus on localhost:9527 (默认端口)
 **测试方法**: curl + Python 脚本
 
 ## ✅ 测试结果总览

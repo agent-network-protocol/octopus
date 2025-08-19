@@ -44,7 +44,25 @@ class ANPCrawler:
         """
         if gateway_url is None:
             settings = get_settings()
-            gateway_url = f"http://{settings.host}:{settings.anp_gateway_http_port}"
+            # Use configured ANP HTTP gateway URL
+            if settings.anp_gateway_http_url:
+                gateway_url = f"https://{settings.anp_gateway_http_url}"
+            else:
+                # Fallback to converting WebSocket URL to HTTP if needed
+                anp_ws_url = settings.anp_gateway_ws_url
+                if anp_ws_url and anp_ws_url.startswith("ws://"):
+                    gateway_url = anp_ws_url.replace("ws://", "http://").replace(
+                        "/ws", ""
+                    )
+                elif anp_ws_url and anp_ws_url.startswith("wss://"):
+                    gateway_url = anp_ws_url.replace("wss://", "https://").replace(
+                        "/ws", ""
+                    )
+                else:
+                    # Final fallback - should not happen with proper config
+                    raise ValueError(
+                        "No ANP gateway URL configured. Please set ANP_GATEWAY_HTTP_URL or ANP_GATEWAY_WS_URL."
+                    )
 
         self.did_document_path = did_document_path
         self.private_key_path = private_key_path

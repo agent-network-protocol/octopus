@@ -19,7 +19,10 @@ os.environ.pop("HTTP_PROXY", None)
 os.environ.pop("HTTPS_PROXY", None)
 
 # Test server configuration
-BASE_URL = "http://localhost:9527"
+from octopus.config.settings import get_settings
+
+settings = get_settings()
+BASE_URL = f"http://{settings.host}:{settings.port}"
 
 # Test configuration
 TIMEOUT_SECONDS = 10

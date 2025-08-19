@@ -394,7 +394,7 @@ class MessageAgent(BaseAgent):
                 did_document_path=settings.did_document_path,
                 private_key_path=settings.did_private_key_path,
                 cache_enabled=True,
-                gateway_url=f"http://{settings.host}:{settings.anp_gateway_http_port}",
+                gateway_url=None,  # Use default from settings
             )
 
         return self._anp_crawler

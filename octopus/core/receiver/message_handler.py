@@ -209,7 +209,7 @@ class MessageHandler:
         try:
             request_id = request.get_request_id()
             http_meta = request.get_http_meta()
-            http_body = request.get_http_body()
+            request.get_http_body()
 
             logger.info(
                 "🔄 [HTTP_REQUEST] Processing HTTP request",

@@ -1,112 +1,154 @@
-# 环境变量配置指南
+# 🔧 环境配置指南
 
 ## 概述
 
-Octopus 使用环境变量来管理应用程序的配置。所有的配置都定义在 `.env` 文件中，该文件从 `.env_template` 模板创建。
+Octopus 支持多种配置方式，提供灵活的配置管理：
+- 📄 **环境文件** (`.env`)
+- 🖥️ **CLI 参数**（优先级更高）
+- 🌐 **环境变量**
 
-## 设置步骤
+## 🚀 快速设置
 
-### 1. 创建 .env 文件
+### 1. 创建环境文件
 
-从项目根目录运行以下命令：
+从项目根目录运行：
 
 ```bash
-cp .env_template .env
+cp .env.example .env
 ```
 
-### 2. 配置 OpenAI API 密钥
+### 2. 基础配置
 
-编辑 `.env` 文件，设置您的 OpenAI API 密钥：
-
-```bash
-# OpenAI Configuration
-OPENAI_API_KEY=sk-your-actual-openai-api-key-here
-OPENAI_MODEL=gpt-4-turbo-preview
-OPENAI_TEMPERATURE=0.7
-OPENAI_MAX_TOKENS=4000
-```
-
-**如何获取 OpenAI API 密钥：**
-
-1. 访问 [OpenAI Platform](https://platform.openai.com/)
-2. 登录您的账户
-3. 前往 "API Keys" 页面
-4. 创建一个新的 API 密钥
-5. 复制密钥并粘贴到 `.env` 文件中
-
-### 3. 配置应用程序设置
+编辑 `.env` 文件：
 
 ```bash
-# Application Configuration
-APP_NAME=Octopus
-APP_VERSION=0.1.0
-DEBUG=false
+# 🤖 AI Configuration
+OPENAI_API_KEY=your_actual_openai_api_key_here
+OPENAI_MODEL=openai/gpt-4o
+
+# 🌐 Application Configuration
+PORT=9527
 HOST=0.0.0.0
-PORT=9880
-
-# Logging Configuration
+DEBUG=false
 LOG_LEVEL=INFO
-LOG_FILE=
 
-# Agent Configuration
-MAX_AGENTS=100
-AGENT_TIMEOUT=300
-
-# ANP SDK Configuration
+# 📡 ANP Configuration
 ANP_SDK_ENABLED=true
+ANP_GATEWAY_WS_URL=wss://anpproxy.com/ws
+ANP_GATEWAY_HTTP_URL=www.anpproxy.com
+ANP__RECEIVER__LOCAL_PORT=8001
 ```
 
-## 环境变量说明
+### 3. CLI 参数覆盖
 
-### 应用程序配置
-
-| 变量名 | 描述 | 默认值 |
-|--------|------|--------|
-| `APP_NAME` | 应用程序名称 | Octopus |
-| `APP_VERSION` | 应用程序版本 | 0.1.0 |
-| `DEBUG` | 调试模式 | false |
-| `HOST` | 服务器主机地址 | 0.0.0.0 |
-| `PORT` | 服务器端口 | 9880 |
-
-### 日志配置
-
-| 变量名 | 描述 | 默认值 |
-|--------|------|--------|
-| `LOG_LEVEL` | 日志级别 (DEBUG, INFO, WARNING, ERROR, CRITICAL) | INFO |
-| `LOG_FILE` | 日志文件路径 (为空时使用默认路径) | (empty) |
-
-### 智能体配置
-
-| 变量名 | 描述 | 默认值 |
-|--------|------|--------|
-| `MAX_AGENTS` | 最大智能体数量 | 100 |
-| `AGENT_TIMEOUT` | 智能体超时时间（秒） | 300 |
-
-### OpenAI 配置
-
-| 变量名 | 描述 | 默认值 |
-|--------|------|--------|
-| `OPENAI_API_KEY` | OpenAI API 密钥 | (必需) |
-| `OPENAI_MODEL` | 使用的 OpenAI 模型 | gpt-4-turbo-preview |
-| `OPENAI_TEMPERATURE` | 模型温度参数 | 0.7 |
-| `OPENAI_MAX_TOKENS` | 最大 token 数量 | 4000 |
-
-### ANP SDK 配置
-
-| 变量名 | 描述 | 默认值 |
-|--------|------|--------|
-| `ANP_SDK_ENABLED` | 是否启用 ANP SDK | true |
-
-## 验证配置
-
-运行以下命令验证配置是否正确：
+CLI 参数具有最高优先级：
 
 ```bash
-# 验证基本配置
-uv run python -c "from octopus.config.settings import get_settings; settings = get_settings(); print('✓ 配置加载成功'); print(f'端口: {settings.port}'); print(f'主机: {settings.host}'); print(f'OpenAI 模型: {settings.openai_model}')"
+# 使用 CLI 覆盖配置
+uv run python -m octopus.octopus --port 9529 --debug --log-level DEBUG
 
-# 测试 OpenAI API 密钥是否可用（需要设置真实的 API 密钥）
-uv run python -c "from octopus.master_agent import MasterAgent; agent = MasterAgent(); print('✓ MasterAgent 初始化成功')"
+# ANP 配置覆盖
+uv run python -m octopus.octopus --anp-gateway wss://anpproxy.com/ws
+
+# 使用自定义配置文件
+uv run python -m octopus.octopus --config .env.production
+```
+
+### 4. 多实例配置
+
+为不同实例创建专用配置：
+
+```bash
+# 创建实例配置
+cp .env.example .env.instance_a
+cp .env.example .env.instance_b
+
+# 编辑端口配置
+# .env.instance_a: PORT=9527
+# .env.instance_b: PORT=9529
+
+# 启动不同实例
+uv run python -m octopus.octopus --config .env.instance_a
+uv run python -m octopus.octopus --config .env.instance_b
+```
+
+## 📋 配置参数说明
+
+### 🎯 CLI 参数映射
+
+| CLI 参数 | 环境变量 | 描述 | 默认值 |
+|----------|----------|------|--------|
+| `--port` | `PORT` | 服务器端口 | 9527 |
+| `--host` | `HOST` | 服务器主机 | 0.0.0.0 |
+| `--debug` | `DEBUG` | 调试模式 | false |
+| `--log-level` | `LOG_LEVEL` | 日志级别 | INFO |
+| `--anp-gateway` | `ANP_GATEWAY_WS_URL` | ANP 网关WebSocket地址 | wss://anpproxy.com/ws |
+| `--anp/--no-anp` | `ANP_SDK_ENABLED` | ANP 启用状态 | true |
+
+### 🤖 AI 配置
+
+| 变量名 | 描述 | 默认值 | 必需 |
+|--------|------|--------|------|
+| `OPENAI_API_KEY` | OpenAI API 密钥 | - | ✅ |
+| `OPENAI_MODEL` | AI 模型名称 | openai/gpt-4o | ❌ |
+| `OPENAI_BASE_URL` | API 基础地址 | https://openrouter.ai/api/v1 | ❌ |
+| `OPENAI_TEMPERATURE` | 模型温度 | 0.7 | ❌ |
+| `OPENAI_MAX_TOKENS` | 最大 token 数 | 4000 | ❌ |
+
+### 📡 ANP 协议配置
+
+| 变量名 | 描述 | 默认值 |
+|--------|------|--------|
+| `ANP_SDK_ENABLED` | 启用 ANP 功能 | true |
+| `ANP_GATEWAY_WS_URL` | ANP 网关 WebSocket 地址 | wss://anpproxy.com/ws |
+| `ANP_GATEWAY_HTTP_URL` | ANP 网关 HTTP 地址 | www.anpproxy.com |
+| `ANP__RECEIVER__LOCAL_PORT` | ANP 接收器本地端口 | 8001 |
+| `ANP__RECEIVER__GATEWAY_URL` | ANP 接收器网关地址 | wss://anpproxy.com/ws |
+| `ANP__RECEIVER__TIMEOUT_SECONDS` | ANP 连接超时(秒) | 30.0 |
+
+### 🔐 DID 身份认证
+
+| 变量名 | 描述 | 默认值 |
+|--------|------|--------|
+| `DID_DOCUMENT_PATH` | DID 文档路径 | - |
+| `DID_PRIVATE_KEY_PATH` | DID 私钥路径 | - |
+| `DID_DOMAIN` | DID 域名 | didhost.cc |
+| `DID_PATH` | DID 路径 | test:public |
+
+## ✅ 验证配置
+
+### 快速验证
+
+```bash
+# 检查配置加载
+uv run python -m octopus.octopus --help
+
+# 验证配置并显示启动信息
+uv run python -c "
+from octopus.config.settings import get_settings
+settings = get_settings()
+print('✅ 配置验证成功')
+print(f'🌐 服务器: {settings.host}:{settings.port}')
+print(f'🤖 AI模型: {settings.openai_model}')
+print(f'📡 ANP状态: {'启用' if settings.anp_sdk_enabled else '禁用'}')
+"
+
+# 测试启动（Ctrl+C 退出）
+uv run python -m octopus.octopus --debug
+```
+
+### CLI 参数测试
+
+```bash
+# 测试端口覆盖
+uv run python -m octopus.octopus --port 8080 --debug --log-level DEBUG
+
+# 测试 ANP 配置
+uv run python -m octopus.octopus --anp-gateway wss://anpproxy.com/ws --no-anp
+
+# 测试配置文件
+echo "PORT=7777" > test.env
+uv run python -m octopus.octopus --config test.env
 ```
 
 ## 安全提醒

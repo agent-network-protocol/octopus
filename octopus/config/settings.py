@@ -3,6 +3,7 @@ Application settings and configuration.
 """
 
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -58,12 +59,12 @@ class ReceiverConfig(BaseSettings):
     """Receiver-specific configuration."""
 
     # Gateway connection
-    gateway_url: str = "ws://0.0.0.0:8789"  # WebSocket port 8789
+    gateway_url: str | None = None
 
     # Local app settings
     local_host: str = "127.0.0.1"
     local_port: int = 9527
-    local_app_module: str | None = None  # e.g., "myapp:app"
+    local_app_module: str | None = None
 
     # Connection settings
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
@@ -104,41 +105,17 @@ class Settings(BaseSettings):
     port: int = 9527
 
     # LOGGING CONFIGURATION
-
     log_level: str = "INFO"
-    log_file: str | None = None
-    log_file_path: str = "~/Library/Logs/octopus/octopus.log"
-    default_file_encoding: str = "utf-8"
 
-    # PATH CONFIGURATION
-
+    # DID CONFIGURATION
     did_document_path: str | None = None
     did_private_key_path: str | None = None
 
-    # AGENT CONFIGURATION
-
-    max_agents: int = 100
-    agent_timeout: int = 300  # seconds
-
-    # ANP (Agent Network Protocol) CONFIGURATION
-
+    # ANP CONFIGURATION
     anp_sdk_enabled: bool = True
     anp_receiver: ReceiverConfig = Field(default_factory=ReceiverConfig)
-
-    # ANP Gateway Configuration
-    anp_gateway_url: str = "ws://localhost:8789"
-    anp_gateway_http_port: int = 8089
-
-    # ANP Protocol Settings
-    anp_max_message_size: int = 10485760  # 10MB
-    anp_max_chunk_size: int = 1048576  # 1MB
-    anp_max_pending_chunks: int = 1000
-    anp_max_request_id_length: int = 100
-
-    # ANP Timeouts
-    anp_auth_timeout: float = 30.0
-    anp_chunk_timeout: float = 60.0
-    anp_request_timeout: float = 300.0
+    anp_gateway_ws_url: str | None = None
+    anp_gateway_http_url: str | None = None
 
     # DID (Decentralized Identity) CONFIGURATION
     did_domain: str = "didhost.cc"
@@ -151,7 +128,6 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_base_url: str | None = None
     openai_model: str | None = None
-
     openai_temperature: float | None = None
     openai_max_tokens: int | None = None
 
@@ -170,22 +146,24 @@ class Settings(BaseSettings):
     }
 
 
-def get_advertised_services() -> list[str]:
-    """
-    Get basic service capabilities that this receiver can handle.
+# Global settings instance for CLI overrides
+_settings_instance: Settings | None = None
+_cli_overrides: dict[str, Any] = {}
 
-    Returns:
-        List of service path patterns this receiver supports
-    """
-    # Basic service capabilities - Gateway will map DID services to these capabilities
-    return [
-        "agents",  # Agent routes (jsonrpc, info, etc.)
-        "v1",  # Chat and API routes
-        "",  # Root path for main interface
-        "anp/status",  # ANP status endpoint
-    ]
+
+def set_cli_overrides(**overrides) -> None:
+    """Set CLI parameter overrides for configuration."""
+    global _cli_overrides, _settings_instance
+    _cli_overrides.update(overrides)
+    # Reset instance to force recreation with new overrides
+    _settings_instance = None
 
 
 def get_settings() -> Settings:
-    """Get application settings."""
-    return Settings()
+    """Get application settings with CLI overrides applied."""
+    global _settings_instance, _cli_overrides
+
+    if _settings_instance is None:
+        _settings_instance = Settings(**_cli_overrides)
+
+    return _settings_instance
